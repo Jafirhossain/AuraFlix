@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-mega-fix-v2",
-  "version": "14.0.0",
-  "description": "Ultimate Multi-Scraper Engine with TMDB Fix & Zero Buffering.",
+  "name": "auraflix-god-mode",
+  "version": "15.0.0",
+  "description": "The Ultimate Multi-Scraper Engine with Direct Links, Mega, Pixeldrain, and Perfect Meta.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

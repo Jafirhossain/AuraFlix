@@ -1,10 +1,10 @@
 const express = require("express");
 const axios = require("axios");
 
-// NEW ROBUST TMDB API KEY
 const TMDB_API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
 
-const HEADERS = {
+// Fake browser headers for web scrapers (NOT for official APIs)
+const SCRAPER_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*"
 };
@@ -47,23 +47,24 @@ function getManifest(config) {
         { type: "movie", id: "hollywood_hindi", name: "🎬 Hollywood Hindi Dubbed", extra: [{ name: "search" }, { name: "skip" }] }
     ];
 
-    const enabledCatalogs = allCatalogs.filter(cat => config.catalogs[cat.id] !== false);
-
     return {
-        id: "org.auraflix.ultimate",
-        version: "14.0.0",
-        name: "AuraFlix Master VIP 🇮🇳",
-        description: "Ultimate Edition. Blank Categories FIXED. No Streams FIXED. Integrated Native Scrapers (Nyaa, APIBay, YTS) + Torrentio Proxy.",
+        id: "org.auraflix.godmode",
+        version: "15.0.0",
+        name: "AuraFlix God Mode 🇮🇳",
+        description: "Mega/Pixeldrain Direct Links + Free Fast Torrents. Absolute Priority to Hindi Dub & 4K HDR. Blank Title Bug Fixed.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/auraflix-hub/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
         resources: ["catalog", "meta", "stream"],
         types: ["series", "movie", "anime"], 
         idPrefixes: ["kitsu", "anilist", "tt", "tmdb"],
         behaviorHints: { configurable: true, configurationRequired: false },
-        catalogs: enabledCatalogs
+        catalogs: allCatalogs.filter(cat => config.catalogs[cat.id] !== false)
     };
 }
 
+// ----------------------------------------------------
+// FETCHERS (Removed spoofed headers from TMDB to fix Blank Error)
+// ----------------------------------------------------
 async function fetchAnime(catalogId, search = null, genre = null, skip = 0) {
     try {
         let url = `https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=${skip || 0}`;
@@ -74,7 +75,7 @@ async function fetchAnime(catalogId, search = null, genre = null, skip = 0) {
             else if (catalogId === "anime_movies") url += `&filter[subtype]=movie&sort=-userCount`;
             else if (catalogId === "anime_popular") url += `&sort=popularityRank`;
         }
-        const res = await axios.get(url, { headers: HEADERS, timeout: 8000 });
+        const res = await axios.get(url, { timeout: 8000 });
         return (res.data.data || []).map(anime => {
             const attr = anime.attributes;
             return {
@@ -112,8 +113,9 @@ async function fetchOTTContent(catalogId, genre = null, search = null, skip = 0)
         }
 
         if (!url) return [];
-
-        const res = await axios.get(url, { headers: HEADERS, timeout: 8000 });
+        
+        // Removed spoofed headers for TMDB. TMDB blocked them causing "Unknown Title"
+        const res = await axios.get(url, { timeout: 8000 });
         return (res.data.results || []).map(m => ({
             id: `tmdb:${m.id}`,
             name: m.title || m.name,
@@ -146,6 +148,9 @@ async function handleCatalog(req, res, configStr) {
     return res.json({ metas });
 }
 
+// ----------------------------------------------------
+// META FIX
+// ----------------------------------------------------
 app.get("/meta/:type/:id.json", async (req, res) => handleMeta(req, res));
 app.get("/:config/meta/:type/:id.json", async (req, res) => handleMeta(req, res));
 
@@ -154,7 +159,7 @@ async function handleMeta(req, res) {
     if (id.startsWith("kitsu:")) {
         try {
             const cleanId = id.replace("kitsu:", "");
-            const resData = await axios.get(`https://kitsu.io/api/edge/anime/${cleanId}`, { headers: HEADERS, timeout: 6000 });
+            const resData = await axios.get(`https://kitsu.io/api/edge/anime/${cleanId}`, { timeout: 6000 });
             const attr = resData.data.data.attributes;
             const isMovie = attr.subtype === "movie";
             
@@ -182,12 +187,13 @@ async function handleMeta(req, res) {
             const tmdbId = parts[1];
             const isTv = type === "series";
             
-            const resData = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { headers: HEADERS, timeout: 6000 });
+            // TMDB Official API Call without spoofed headers (Fixes Blank Page)
+            const resData = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 6000 });
             const m = resData.data;
             const imdbId = m.external_ids?.imdb_id || m.imdb_id || id;
             
             let metaObj = { 
-                id, type, name: m.title || m.name || "Unknown", 
+                id, type, name: m.title || m.name || "Unknown Title", 
                 poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster", 
                 background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined, 
                 description: m.overview || "No description available.", 
@@ -218,6 +224,9 @@ async function handleMeta(req, res) {
     }
 }
 
+// ----------------------------------------------------
+// MEGA STREAM ENGINE (Torrentio + MediaFusion + Native)
+// ----------------------------------------------------
 app.get("/stream/:type/:id.json", async (req, res) => handleStream(req, res, null));
 app.get("/:config/stream/:type/:id.json", async (req, res) => handleStream(req, res, req.params.config));
 
@@ -228,57 +237,70 @@ async function handleStream(req, res, configStr) {
     let isAnime = targetId.startsWith("kitsu:");
     let mediaTitle = "";
     let episodeNum = "";
+    let seasonNum = "";
     
-    // 1. Resolve Info & IDs
+    // 1. Resolve IMDb ID (Crucial for getting Max Streams)
     try {
         if (isAnime) {
             const parts = targetId.split(":");
             const kId = parts[1];
             episodeNum = parts[2] || "";
-            const kRes = await axios.get(`https://kitsu.io/api/edge/anime/${kId}`, { headers: HEADERS, timeout: 4000 });
+            const kRes = await axios.get(`https://kitsu.io/api/edge/anime/${kId}`, { timeout: 4000 });
             mediaTitle = kRes.data.data.attributes.canonicalTitle || kRes.data.data.attributes.titles.en;
         } else if (targetId.startsWith("tmdb:")) {
             const parts = targetId.split(":");
             const tmdbId = parts[1];
-            const season = parts[2];
+            seasonNum = parts[2];
             episodeNum = parts[3];
             const isTv = type === "series";
             
-            const tRes = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { headers: HEADERS, timeout: 4000 });
+            const tRes = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 4000 });
             mediaTitle = tRes.data.title || tRes.data.name;
             const imdbId = tRes.data.external_ids?.imdb_id || tRes.data.imdb_id;
             
             if (imdbId) {
-                targetId = (season && episodeNum) ? `${imdbId}:${season}:${episodeNum}` : imdbId;
+                targetId = (seasonNum && episodeNum) ? `${imdbId}:${seasonNum}:${episodeNum}` : imdbId;
             }
         }
     } catch (e) {}
 
     let allStreams = [];
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || "8.8.8.8";
+    const reqHeaders = { ...SCRAPER_HEADERS, 'X-Forwarded-For': clientIp.split(',')[0] };
 
-    // 2. Fetch from Torrentio Proxy (Primary Source)
+    // 2. FETCH FROM TORRENTIO
     const torrentioType = isAnime ? "anime" : type;
-    let upstreamUrl = "https://torrentio.strem.fun";
+    let torrentioUrl = "https://torrentio.strem.fun";
     if (config.debridProvider && config.debridProvider !== "none" && config.debridToken) {
-        upstreamUrl += `/${config.debridProvider}=${config.debridToken}`;
+        torrentioUrl += `/${config.debridProvider}=${config.debridToken}`;
     }
-    upstreamUrl += `/stream/${torrentioType}/${targetId}.json`;
+    torrentioUrl += `/stream/${torrentioType}/${targetId}.json`;
+
+    // 3. FETCH FROM MEDIAFUSION (Secret Weapon for Pixeldrain, Mega, Indian Content, HDHub)
+    let mfUrl = `https://mediafusion.fun/stream/${torrentioType}/${targetId}.json`;
 
     try {
-        const resTorrentio = await axios.get(upstreamUrl, { headers: HEADERS, timeout: 6000 });
-        if (resTorrentio && resTorrentio.data && resTorrentio.data.streams) {
-            allStreams = resTorrentio.data.streams;
+        const [resT, resM] = await Promise.allSettled([
+            axios.get(torrentioUrl, { headers: reqHeaders, timeout: 6000 }),
+            axios.get(mfUrl, { headers: reqHeaders, timeout: 6000 })
+        ]);
+
+        if (resT.status === 'fulfilled' && resT.value.data?.streams) {
+            allStreams = allStreams.concat(resT.value.data.streams);
+        }
+        if (resM.status === 'fulfilled' && resM.value.data?.streams) {
+            // MediaFusion streams often contain direct links (Pixeldrain/Mega)
+            allStreams = allStreams.concat(resM.value.data.streams);
         }
     } catch (e) {}
 
-    // 3. THE MASTER FALLBACK: Native Scrapers (If Torrentio is blocked or returns nothing)
-    if (allStreams.length < 3 && mediaTitle) {
+    // 4. THE MASTER FALLBACK: Native Scrapers
+    if (allStreams.length < 5 && mediaTitle) {
         if (isAnime) {
-            // Nyaa.si Direct Scraping
             const queries = [`${mediaTitle} Hindi`, `${mediaTitle} ${episodeNum}`.trim(), mediaTitle];
             for (let q of queries) {
                 try {
-                    let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(q)}&c=0_0&f=0`, { headers: HEADERS, timeout: 4000 });
+                    let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(q)}&c=0_0&f=0`, { headers: SCRAPER_HEADERS, timeout: 4000 });
                     const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
                     items.forEach(item => {
                         const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
@@ -289,34 +311,19 @@ async function handleStream(req, res, configStr) {
                         }
                     });
                 } catch(e) {}
-                if (allStreams.length > 5) break;
+                if (allStreams.length > 8) break;
             }
         } else {
-            // APIBay Direct Scraping
             try {
-                let apiBayRes = await axios.get(`https://apibay.org/q.php?q=${encodeURIComponent(mediaTitle)}`, { headers: HEADERS, timeout: 4000 });
+                let apiBayRes = await axios.get(`https://apibay.org/q.php?q=${encodeURIComponent(mediaTitle)}`, { headers: SCRAPER_HEADERS, timeout: 4000 });
                 if (apiBayRes.data && apiBayRes.data[0].id !== "0") {
                     apiBayRes.data.forEach(t => allStreams.push({ title: t.name, infoHash: t.info_hash, seeders: parseInt(t.seeders) || 5 }));
                 }
             } catch(e) {}
-            
-            // YTS Direct Scraping (For Movies)
-            if (type === "movie") {
-                try {
-                    let ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(mediaTitle)}`, { headers: HEADERS, timeout: 4000 });
-                    if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
-                        ytsRes.data.data.movies.forEach(m => {
-                            m.torrents.forEach(t => {
-                                allStreams.push({ title: `${m.title} ${t.quality} ${t.type}`, infoHash: t.hash, seeders: t.seeds || 15 });
-                            });
-                        });
-                    }
-                } catch(e) {}
-            }
         }
     }
 
-    // 4. Processing and Filtering
+    // 5. PROCESSING & EXTREME FILTERING
     let processedStreams = [];
     let seen = new Set();
     const excludes = config.excludeResolutions || [];
@@ -326,11 +333,11 @@ async function handleStream(req, res, configStr) {
         
         let rawTitle = (s.title || "").toLowerCase();
         let rawName = (s.name || "").toLowerCase();
-        let fullText = rawTitle + " " + rawName;
+        let fullText = rawTitle + " " + rawName + " " + (s.description || "").toLowerCase();
 
         let seedMatch = rawTitle.match(/👤\s*(\d+)/);
         let seeders = s.seeders || (seedMatch ? parseInt(seedMatch[1]) : (s.url ? 999 : 5)); 
-        let isDirect = Boolean(s.url);
+        let isDirect = Boolean(s.url) || fullText.includes("pixeldrain") || fullText.includes("mega") || fullText.includes("direct");
 
         const uniqueKey = s.infoHash || s.url || fullText;
         if (uniqueKey && seen.has(uniqueKey)) return;
@@ -340,17 +347,17 @@ async function handleStream(req, res, configStr) {
         let qRank = 1;
         let isHDR = fullText.includes("hdr") || fullText.includes("dv") || fullText.includes("dolby");
 
-        if (fullText.includes("4k") || fullText.includes("2160p")) { 
+        if (fullText.includes("4k") || fullText.includes("2160p") || fullText.includes("uhd")) { 
             quality = isHDR ? "✨ 4K ULTRA HD • HDR" : "✨ 4K ULTRA HD"; 
             qRank = 4; 
             if(excludes.includes("4k")) return;
         }
-        else if (fullText.includes("1080p")) { 
-            quality = "📺 1080p FULL HD"; 
+        else if (fullText.includes("1080p") || fullText.includes("fhd") || fullText.includes("blu-ray") || fullText.includes("bluray")) { 
+            quality = "📺 1080p FULL HD" + (fullText.includes("blu") ? " (BluRay)" : ""); 
             qRank = 3; 
             if(excludes.includes("1080p")) return;
         }
-        else if (fullText.includes("720p")) { 
+        else if (fullText.includes("720p") || fullText.includes("hd")) { 
             quality = "📱 720p HD"; 
             qRank = 2; 
             if(excludes.includes("720p")) return;
@@ -359,9 +366,10 @@ async function handleStream(req, res, configStr) {
             if(excludes.includes("480p")) return;
         }
 
-        if (excludes.includes("cam") && (fullText.includes("cam") || fullText.includes("ts"))) return;
+        if (excludes.includes("cam") && (fullText.includes("cam") || fullText.includes("ts") || fullText.includes("hdcam"))) return;
 
-        let isHindi = /\b(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi)\b/i.test(fullText);
+        // Strict Hindi & Indian Language Checking
+        let isHindi = /\b(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi|hin)\b/i.test(fullText);
         let isSouth = /\b(telugu|tamil|malayalam|kannada|tam|tel|mal)\b/i.test(fullText);
 
         let langBadge = "🌐 MULTI AUDIO";
@@ -370,15 +378,17 @@ async function handleStream(req, res, configStr) {
         if (isHindi) { langBadge = "🇮🇳 HINDI DUB"; langRank = 15; }
         else if (isSouth) { langBadge = "🇮🇳 SOUTH ORIGINAL"; langRank = 10; }
         
-        if (config.langPriority === "hindi" && isHindi) langRank = 30;
+        if (config.langPriority === "hindi" && isHindi) langRank = 50;
 
-        let modeTag = isDirect ? "⚡ PREMIUM DIRECT" : "🚀 P2P STREAM";
+        let modeTag = isDirect ? "⚡ DIRECT LINK" : "🚀 P2P STREAM";
+        if (fullText.includes("pixeldrain")) modeTag = "⚡ PIXELDRAIN DIRECT";
+        if (fullText.includes("mega")) modeTag = "⚡ MEGA DIRECT";
 
         s.langRank = langRank;
         s.qRank = qRank;
         s.seeders = seeders;
 
-        let cleanTitle = s.title ? s.title.split('\n')[0].replace(/\b(Torrentio|Debrid)\b/ig, 'AuraFlix') : 'Play Now';
+        let cleanTitle = s.title ? s.title.split('\n')[0].replace(/\b(Torrentio|Debrid|MediaFusion)\b/ig, 'AuraFlix') : 'Play Now';
 
         s.name = `🎬 AuraFlix VIP\n${langBadge}`;
         s.title = `${quality} • ${modeTag}\n${cleanTitle}\n👤 ${seeders} Seeders`;
@@ -386,17 +396,22 @@ async function handleStream(req, res, configStr) {
         processedStreams.push(s);
     });
 
+    // ABSOLUTE GOD-MODE SORTING:
+    // 1. Priority Language (Hindi) 2. 4K/1080p Quality 3. Direct Links (Pixeldrain/Mega/Debrid) 4. High Seeders
     processedStreams.sort((a, b) => {
         if (b.langRank !== a.langRank) return b.langRank - a.langRank; 
+        if (b.qRank !== a.qRank) return b.qRank - a.qRank;
         if (b.url && !a.url) return 1; 
         if (!b.url && a.url) return -1;
-        if (b.seeders !== a.seeders) return b.seeders - a.seeders; 
-        return b.qRank - a.qRank; 
+        return b.seeders - a.seeders; 
     });
 
-    return res.json({ streams: processedStreams });
+    return res.json({ streams: processedStreams.slice(0, parseInt(config.maxStreams) || 50) });
 }
 
+// ----------------------------------------------------
+// UI HTML DASHBOARD FUNCTION
+// ----------------------------------------------------
 function renderConfigPage(res, currentConfig) {
     const configJson = JSON.stringify(currentConfig);
     res.send(`
@@ -412,22 +427,16 @@ function renderConfigPage(res, currentConfig) {
                 .header { text-align: center; margin-bottom: 30px; }
                 h1 { color: #f43f5e; margin: 0 0 10px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
                 p.desc { color: #94a3b8; font-size: 15px; margin: 0; }
-                
                 .section { background: #1f2937; padding: 20px; border-radius: 12px; margin-bottom: 20px; border-left: 4px solid #f43f5e; }
                 .section-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #f8fafc; display: flex; align-items: center; }
-                
                 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
                 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-                
                 label { font-size: 14px; cursor: pointer; display: flex; align-items: center; color: #cbd5e1; }
                 input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; accent-color: #f43f5e; cursor: pointer; }
-                
                 select, input[type="text"] { width: 100%; padding: 12px; background: #0f172a; color: #f8fafc; border: 1px solid #334155; border-radius: 8px; margin-top: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border 0.2s; }
                 select:focus, input[type="text"]:focus { border-color: #f43f5e; }
-                
                 .debrid-box { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px dashed #334155; }
                 .debrid-hint { font-size: 12px; color: #64748b; margin-top: 5px; }
-                
                 .btn { display: block; width: 100%; background: #f43f5e; color: white; padding: 16px; text-align: center; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; margin-top: 30px; transition: background 0.3s; border: none; cursor: pointer; }
                 .btn:hover { background: #e11d48; }
             </style>
@@ -435,8 +444,8 @@ function renderConfigPage(res, currentConfig) {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>AuraFlix Ultimate</h1>
-                    <p class="desc">Configure your quality preferences and attach your Debrid API key for smooth, zero-buffering playback.</p>
+                    <h1>AuraFlix God Mode</h1>
+                    <p class="desc">Integrated with MediaFusion & Torrentio for Direct Links (Pixeldrain/Mega) & P2P. Perfect Meta Fixed.</p>
                 </div>
                 
                 <div class="section">
@@ -470,15 +479,15 @@ function renderConfigPage(res, currentConfig) {
                 <div class="section">
                     <div class="section-title">🌐 Priority Language</div>
                     <select id="langPriority">
-                        <option value="hindi">🇮🇳 Hindi (Default)</option>
+                        <option value="hindi">🇮🇳 Hindi (Default - Highly Prioritized)</option>
                         <option value="all">🌐 No Priority (By Quality Only)</option>
                     </select>
                 </div>
 
                 <div class="section">
-                    <div class="section-title">🚀 Debrid Provider (Zero Buffering)</div>
+                    <div class="section-title">🚀 Debrid Provider (Optional)</div>
                     <select id="debridProvider" onchange="toggleDebridInput()">
-                        <option value="none">None (Free P2P Torrents)</option>
+                        <option value="none">None (Free Direct/Mega & P2P)</option>
                         <option value="realdebrid">Real-Debrid</option>
                         <option value="alldebrid">AllDebrid</option>
                         <option value="premiumize">Premiumize</option>
