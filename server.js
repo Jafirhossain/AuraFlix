@@ -296,8 +296,8 @@ async function handleStream(req, res, configStr) {
         if (uniqueKey) seenHashes.add(uniqueKey);
 
         let fullText = ((s.title || "") + " " + (s.name || "")).toLowerCase();
-        let isHindi = /(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi)/i.test(fullText);
-        let isSouth = /(telugu|tamil|malayalam|kannada|tam|tel|mal)/i.test(fullText);
+        let isHindi = /\b(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi)\b/i.test(fullText);
+        let isSouth = /\b(telugu|tamil|malayalam|kannada|tam|tel|mal)\b/i.test(fullText);
 
         let langBadge = "🌐 MULTI AUDIO";
         let langRank = 1;
@@ -324,11 +324,9 @@ async function handleStream(req, res, configStr) {
         s.qRank = qRank;
         s.seeders = s.seeders || 5;
 
-        s.name = `🎬 AuraFlix VIP
-${langBadge}`;
-        s.title = `${quality} • ${modeTag}
-${s.title ? s.title.split('
-')[0] : 'Play Now'}`;
+        // FIXED SYNTAX ERROR HERE: Using regex to split avoids string escaping issues
+        s.name = `🎬 AuraFlix VIP\n${langBadge}`;
+        s.title = `${quality} • ${modeTag}\n${s.title ? s.title.split(/\r?\n/)[0] : 'Play Now'}`;
 
         processedStreams.push(s);
     });
