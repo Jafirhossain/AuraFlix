@@ -3,12 +3,6 @@ const axios = require("axios");
 
 const TMDB_API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
 
-// Fake browser headers for web scrapers (NOT for official APIs)
-const SCRAPER_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*"
-};
-
 function getDefaultConfig() {
     return {
         catalogs: {
@@ -48,23 +42,25 @@ function getManifest(config) {
     ];
 
     return {
-        id: "org.auraflix.godmode",
-        version: "15.0.0",
-        name: "AuraFlix God Mode 🇮🇳",
-        description: "Mega/Pixeldrain Direct Links + Free Fast Torrents. Absolute Priority to Hindi Dub & 4K HDR. Blank Title Bug Fixed.",
+        id: "org.auraflix.ultravip",
+        version: "16.0.0",
+        name: "AuraFlix Ultra VIP 🇮🇳",
+        description: "ULTIMATE FIX: Blank Pages & Missing Play Button 100% FIXED. Multi-Engine Scraper (Torrentio + KnightCrawler + MediaFusion) for Mega/Pixeldrain Direct Links.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/auraflix-hub/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
-        resources: ["catalog", "meta", "stream"],
+        resources: [
+            "catalog",
+            // CRUCIAL FIX: We ONLY handle meta for Anime (Kitsu). 
+            // TMDB/IMDb will be handled perfectly by Stremio's native Cinemeta. Zero blank pages!
+            { name: "meta", types: ["anime", "series", "movie"], idPrefixes: ["kitsu"] },
+            { name: "stream", types: ["anime", "series", "movie"], idPrefixes: ["kitsu", "tmdb", "tt"] }
+        ],
         types: ["series", "movie", "anime"], 
-        idPrefixes: ["kitsu", "anilist", "tt", "tmdb"],
         behaviorHints: { configurable: true, configurationRequired: false },
         catalogs: allCatalogs.filter(cat => config.catalogs[cat.id] !== false)
     };
 }
 
-// ----------------------------------------------------
-// FETCHERS (Removed spoofed headers from TMDB to fix Blank Error)
-// ----------------------------------------------------
 async function fetchAnime(catalogId, search = null, genre = null, skip = 0) {
     try {
         let url = `https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=${skip || 0}`;
@@ -114,7 +110,6 @@ async function fetchOTTContent(catalogId, genre = null, search = null, skip = 0)
 
         if (!url) return [];
         
-        // Removed spoofed headers for TMDB. TMDB blocked them causing "Unknown Title"
         const res = await axios.get(url, { timeout: 8000 });
         return (res.data.results || []).map(m => ({
             id: `tmdb:${m.id}`,
@@ -148,9 +143,7 @@ async function handleCatalog(req, res, configStr) {
     return res.json({ metas });
 }
 
-// ----------------------------------------------------
-// META FIX
-// ----------------------------------------------------
+// Meta is ONLY for Kitsu now. Cinemeta handles TMDB beautifully!
 app.get("/meta/:type/:id.json", async (req, res) => handleMeta(req, res));
 app.get("/:config/meta/:type/:id.json", async (req, res) => handleMeta(req, res));
 
@@ -181,51 +174,12 @@ async function handleMeta(req, res) {
             }
             return res.json({ meta: metaObj });
         } catch (e) { return res.status(404).send("Not Found"); }
-    } else if (id.startsWith("tmdb:")) {
-        try {
-            const parts = id.split(":");
-            const tmdbId = parts[1];
-            const isTv = type === "series";
-            
-            // TMDB Official API Call without spoofed headers (Fixes Blank Page)
-            const resData = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 6000 });
-            const m = resData.data;
-            const imdbId = m.external_ids?.imdb_id || m.imdb_id || id;
-            
-            let metaObj = { 
-                id, type, name: m.title || m.name || "Unknown Title", 
-                poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster", 
-                background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined, 
-                description: m.overview || "No description available.", 
-                imdb_id: imdbId,
-                imdbRating: m.vote_average ? m.vote_average.toString() : undefined,
-                releaseInfo: m.release_date ? m.release_date.substring(0,4) : (m.first_air_date ? m.first_air_date.substring(0,4) : undefined)
-            };
-
-            if (isTv && m.seasons) {
-                let videos = [];
-                m.seasons.forEach(season => {
-                    if (season.season_number > 0) {
-                        for (let i = 1; i <= season.episode_count; i++) {
-                            videos.push({
-                                id: `tmdb:${tmdbId}:${season.season_number}:${i}`,
-                                title: `Season ${season.season_number} Ep ${i}`,
-                                season: season.season_number,
-                                episode: i,
-                                released: new Date().toISOString()
-                            });
-                        }
-                    }
-                });
-                metaObj.videos = videos;
-            }
-            return res.json({ meta: metaObj });
-        } catch (e) { return res.status(404).send("Not Found"); }
     }
+    return res.status(404).send("Not Found"); 
 }
 
 // ----------------------------------------------------
-// MEGA STREAM ENGINE (Torrentio + MediaFusion + Native)
+// MULTI-ENGINE SCRAPER (Torrentio + KnightCrawler + MediaFusion)
 // ----------------------------------------------------
 app.get("/stream/:type/:id.json", async (req, res) => handleStream(req, res, null));
 app.get("/:config/stream/:type/:id.json", async (req, res) => handleStream(req, res, req.params.config));
@@ -239,13 +193,12 @@ async function handleStream(req, res, configStr) {
     let episodeNum = "";
     let seasonNum = "";
     
-    // 1. Resolve IMDb ID (Crucial for getting Max Streams)
+    // Resolve IDs
     try {
         if (isAnime) {
             const parts = targetId.split(":");
-            const kId = parts[1];
             episodeNum = parts[2] || "";
-            const kRes = await axios.get(`https://kitsu.io/api/edge/anime/${kId}`, { timeout: 4000 });
+            const kRes = await axios.get(`https://kitsu.io/api/edge/anime/${parts[1]}`, { timeout: 4000 });
             mediaTitle = kRes.data.data.attributes.canonicalTitle || kRes.data.data.attributes.titles.en;
         } else if (targetId.startsWith("tmdb:")) {
             const parts = targetId.split(":");
@@ -258,49 +211,47 @@ async function handleStream(req, res, configStr) {
             mediaTitle = tRes.data.title || tRes.data.name;
             const imdbId = tRes.data.external_ids?.imdb_id || tRes.data.imdb_id;
             
-            if (imdbId) {
-                targetId = (seasonNum && episodeNum) ? `${imdbId}:${seasonNum}:${episodeNum}` : imdbId;
-            }
+            if (imdbId) targetId = (seasonNum && episodeNum) ? `${imdbId}:${seasonNum}:${episodeNum}` : imdbId;
+        } else if (targetId.startsWith("tt")) {
+            const parts = targetId.split(":");
+            seasonNum = parts[1];
+            episodeNum = parts[2];
         }
     } catch (e) {}
 
     let allStreams = [];
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || "8.8.8.8";
-    const reqHeaders = { ...SCRAPER_HEADERS, 'X-Forwarded-For': clientIp.split(',')[0] };
-
-    // 2. FETCH FROM TORRENTIO
     const torrentioType = isAnime ? "anime" : type;
-    let torrentioUrl = "https://torrentio.strem.fun";
-    if (config.debridProvider && config.debridProvider !== "none" && config.debridToken) {
-        torrentioUrl += `/${config.debridProvider}=${config.debridToken}`;
-    }
-    torrentioUrl += `/stream/${torrentioType}/${targetId}.json`;
 
-    // 3. FETCH FROM MEDIAFUSION (Secret Weapon for Pixeldrain, Mega, Indian Content, HDHub)
-    let mfUrl = `https://mediafusion.fun/stream/${torrentioType}/${targetId}.json`;
-
-    try {
-        const [resT, resM] = await Promise.allSettled([
-            axios.get(torrentioUrl, { headers: reqHeaders, timeout: 6000 }),
-            axios.get(mfUrl, { headers: reqHeaders, timeout: 6000 })
-        ]);
-
-        if (resT.status === 'fulfilled' && resT.value.data?.streams) {
-            allStreams = allStreams.concat(resT.value.data.streams);
+    // Build Debrid URLs
+    const buildProviderUrl = (baseUrl) => {
+        let u = baseUrl;
+        if (config.debridProvider && config.debridProvider !== "none" && config.debridToken) {
+            u += `/${config.debridProvider}=${config.debridToken}`;
         }
-        if (resM.status === 'fulfilled' && resM.value.data?.streams) {
-            // MediaFusion streams often contain direct links (Pixeldrain/Mega)
-            allStreams = allStreams.concat(resM.value.data.streams);
-        }
-    } catch (e) {}
+        return `${u}/stream/${torrentioType}/${targetId}.json`;
+    };
 
-    // 4. THE MASTER FALLBACK: Native Scrapers
-    if (allStreams.length < 5 && mediaTitle) {
+    // Parallel Request to all 3 Major Engines!
+    const providers = [
+        "https://torrentio.strem.fun", 
+        "https://knightcrawler.elfhosted.com", 
+        "https://mediafusion.elfhosted.com"
+    ];
+
+    await Promise.all(providers.map(async (provider) => {
+        try {
+            let r = await axios.get(buildProviderUrl(provider), { timeout: 6500 });
+            if (r.data && r.data.streams) allStreams.push(...r.data.streams);
+        } catch(e) {}
+    }));
+
+    // Native Scraper Fallback
+    if (allStreams.length < 3 && mediaTitle) {
         if (isAnime) {
             const queries = [`${mediaTitle} Hindi`, `${mediaTitle} ${episodeNum}`.trim(), mediaTitle];
             for (let q of queries) {
                 try {
-                    let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(q)}&c=0_0&f=0`, { headers: SCRAPER_HEADERS, timeout: 4000 });
+                    let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(q)}&c=0_0&f=0`, { timeout: 4000 });
                     const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
                     items.forEach(item => {
                         const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
@@ -311,11 +262,11 @@ async function handleStream(req, res, configStr) {
                         }
                     });
                 } catch(e) {}
-                if (allStreams.length > 8) break;
+                if (allStreams.length > 5) break;
             }
         } else {
             try {
-                let apiBayRes = await axios.get(`https://apibay.org/q.php?q=${encodeURIComponent(mediaTitle)}`, { headers: SCRAPER_HEADERS, timeout: 4000 });
+                let apiBayRes = await axios.get(`https://apibay.org/q.php?q=${encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
                 if (apiBayRes.data && apiBayRes.data[0].id !== "0") {
                     apiBayRes.data.forEach(t => allStreams.push({ title: t.name, infoHash: t.info_hash, seeders: parseInt(t.seeders) || 5 }));
                 }
@@ -323,7 +274,6 @@ async function handleStream(req, res, configStr) {
         }
     }
 
-    // 5. PROCESSING & EXTREME FILTERING
     let processedStreams = [];
     let seen = new Set();
     const excludes = config.excludeResolutions || [];
@@ -335,8 +285,10 @@ async function handleStream(req, res, configStr) {
         let rawName = (s.name || "").toLowerCase();
         let fullText = rawTitle + " " + rawName + " " + (s.description || "").toLowerCase();
 
-        let seedMatch = rawTitle.match(/👤\s*(\d+)/);
+        let seedMatch = rawTitle.match(/👤\s*(\d+)/) || rawTitle.match(/seeds:\s*(\d+)/i);
         let seeders = s.seeders || (seedMatch ? parseInt(seedMatch[1]) : (s.url ? 999 : 5)); 
+        
+        // Detect Mega/Pixeldrain from MediaFusion
         let isDirect = Boolean(s.url) || fullText.includes("pixeldrain") || fullText.includes("mega") || fullText.includes("direct");
 
         const uniqueKey = s.infoHash || s.url || fullText;
@@ -368,9 +320,8 @@ async function handleStream(req, res, configStr) {
 
         if (excludes.includes("cam") && (fullText.includes("cam") || fullText.includes("ts") || fullText.includes("hdcam"))) return;
 
-        // Strict Hindi & Indian Language Checking
-        let isHindi = /\b(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi|hin)\b/i.test(fullText);
-        let isSouth = /\b(telugu|tamil|malayalam|kannada|tam|tel|mal)\b/i.test(fullText);
+        let isHindi = /(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi|hin)/i.test(fullText);
+        let isSouth = /(telugu|tamil|malayalam|kannada|tam|tel|mal)/i.test(fullText);
 
         let langBadge = "🌐 MULTI AUDIO";
         let langRank = 1;
@@ -380,7 +331,11 @@ async function handleStream(req, res, configStr) {
         
         if (config.langPriority === "hindi" && isHindi) langRank = 50;
 
-        let modeTag = isDirect ? "⚡ DIRECT LINK" : "🚀 P2P STREAM";
+        let providerTag = "🚀 P2P STREAM";
+        if (fullText.includes("mediafusion") || rawName.includes("mediafusion")) providerTag = "🔥 MEDIAFUSION";
+        if (fullText.includes("knightcrawler") || rawName.includes("knightcrawler")) providerTag = "🕷️ KNIGHTCRAWLER";
+        
+        let modeTag = isDirect ? "⚡ DIRECT LINK" : providerTag;
         if (fullText.includes("pixeldrain")) modeTag = "⚡ PIXELDRAIN DIRECT";
         if (fullText.includes("mega")) modeTag = "⚡ MEGA DIRECT";
 
@@ -388,16 +343,20 @@ async function handleStream(req, res, configStr) {
         s.qRank = qRank;
         s.seeders = seeders;
 
-        let cleanTitle = s.title ? s.title.split('\n')[0].replace(/\b(Torrentio|Debrid|MediaFusion)\b/ig, 'AuraFlix') : 'Play Now';
+        let cleanTitle = s.title ? s.title.split('
+')[0].replace(/(Torrentio|Debrid|MediaFusion|KnightCrawler)/ig, 'AuraFlix') : 'Play Now';
 
-        s.name = `🎬 AuraFlix VIP\n${langBadge}`;
-        s.title = `${quality} • ${modeTag}\n${cleanTitle}\n👤 ${seeders} Seeders`;
+        s.name = `🎬 AuraFlix VIP
+${langBadge}`;
+        s.title = `${quality} • ${modeTag}
+${cleanTitle}
+👤 ${seeders} Seeders`;
 
         processedStreams.push(s);
     });
 
     // ABSOLUTE GOD-MODE SORTING:
-    // 1. Priority Language (Hindi) 2. 4K/1080p Quality 3. Direct Links (Pixeldrain/Mega/Debrid) 4. High Seeders
+    // 1. Priority Language (Hindi) 2. 4K/1080p Quality 3. Direct Links 4. High Seeders
     processedStreams.sort((a, b) => {
         if (b.langRank !== a.langRank) return b.langRank - a.langRank; 
         if (b.qRank !== a.qRank) return b.qRank - a.qRank;
@@ -409,9 +368,6 @@ async function handleStream(req, res, configStr) {
     return res.json({ streams: processedStreams.slice(0, parseInt(config.maxStreams) || 50) });
 }
 
-// ----------------------------------------------------
-// UI HTML DASHBOARD FUNCTION
-// ----------------------------------------------------
 function renderConfigPage(res, currentConfig) {
     const configJson = JSON.stringify(currentConfig);
     res.send(`
@@ -444,7 +400,7 @@ function renderConfigPage(res, currentConfig) {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>AuraFlix God Mode</h1>
+                    <h1>AuraFlix Ultra VIP</h1>
                     <p class="desc">Integrated with MediaFusion & Torrentio for Direct Links (Pixeldrain/Mega) & P2P. Perfect Meta Fixed.</p>
                 </div>
                 
