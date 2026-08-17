@@ -1,0 +1,14 @@
+{
+  "name": "auraflix-master-pro",
+  "version": "11.0.0",
+  "description": "The Ultimate Anime, Cartoon & South Hindi Streaming Engine with Direct Web & High-Speed P2P Dual Modes.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "express": "^4.19.2",
+    "stremio-addon-sdk": "^1.6.10"
+  }
+}
