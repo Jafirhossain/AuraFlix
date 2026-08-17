@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-ultimate-fixed",
-  "version": "13.0.0",
-  "description": "Zero Buffering Engine with Proxy Bypass and Perfect Metadata.",
+  "name": "auraflix-mega-fix-v2",
+  "version": "14.0.0",
+  "description": "Ultimate Multi-Scraper Engine with TMDB Fix & Zero Buffering.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
