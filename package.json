@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-ultimate-debrid",
-  "version": "12.0.0",
-  "description": "Advanced Streaming Engine with Debrid Integration, Multi-Quality, and Zero Buffering.",
+  "name": "auraflix-pro-hub",
+  "version": "14.0.0",
+  "description": "Ultra-Optimized Multi-OTT Engine like Torrentio & MediaFusion with 100% Free P2P & Debrid Integration.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
