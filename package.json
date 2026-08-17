@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-pro-hub",
-  "version": "14.0.0",
-  "description": "Ultra-Optimized Multi-OTT Engine like Torrentio & MediaFusion with 100% Free P2P & Debrid Integration.",
+  "name": "auraflix-ultimate-engine",
+  "version": "15.0.0",
+  "description": "Professional Torrentio & MediaFusion Class Engine. Multi-Tracker, TorBox/Debrid, and Flawless OTT Hubs.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
