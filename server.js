@@ -43,15 +43,13 @@ function getManifest(config) {
 
     return {
         id: "org.auraflix.ultravip",
-        version: "16.0.0",
+        version: "16.1.0",
         name: "AuraFlix Ultra VIP 🇮🇳",
-        description: "ULTIMATE FIX: Blank Pages & Missing Play Button 100% FIXED. Multi-Engine Scraper (Torrentio + KnightCrawler + MediaFusion) for Mega/Pixeldrain Direct Links.",
-        logo: "https://raw.githubusercontent.com/Jafirhossain/auraflix-hub/main/logo.png",
+        description: "ULTIMATE FIX: Syntax Error Fixed! Multi-Engine Scraper (Torrentio + KnightCrawler + MediaFusion) for Mega/Pixeldrain Direct Links.",
+        logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
         resources: [
             "catalog",
-            // CRUCIAL FIX: We ONLY handle meta for Anime (Kitsu). 
-            // TMDB/IMDb will be handled perfectly by Stremio's native Cinemeta. Zero blank pages!
             { name: "meta", types: ["anime", "series", "movie"], idPrefixes: ["kitsu"] },
             { name: "stream", types: ["anime", "series", "movie"], idPrefixes: ["kitsu", "tmdb", "tt"] }
         ],
@@ -79,7 +77,7 @@ async function fetchAnime(catalogId, search = null, genre = null, skip = 0) {
                 name: attr.canonicalTitle || attr.titles?.en || "Anime",
                 poster: attr.posterImage?.large || attr.posterImage?.original || "https://via.placeholder.com/500x750?text=No+Poster",
                 background: attr.coverImage?.large || attr.coverImage?.original,
-                description: `⭐ Score: ${attr.averageRating || "N/A"}% | 📌 Episodes: ${attr.episodeCount || 'Ongoing'}\n\n${attr.synopsis}`
+                description: "⭐ Score: " + (attr.averageRating || "N/A") + "% | 📌 Episodes: " + (attr.episodeCount || 'Ongoing') + "\n\n" + attr.synopsis
             };
         });
     } catch (e) { return []; }
@@ -116,7 +114,7 @@ async function fetchOTTContent(catalogId, genre = null, search = null, skip = 0)
             name: m.title || m.name,
             poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
             background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined,
-            description: `⭐ TMDB: ${m.vote_average || "N/A"}/10 | 📅 ${m.release_date || m.first_air_date || "TBA"}\n\n${m.overview}`
+            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 " + (m.release_date || m.first_air_date || "TBA") + "\n\n" + m.overview
         }));
     } catch (e) { return []; }
 }
@@ -143,7 +141,7 @@ async function handleCatalog(req, res, configStr) {
     return res.json({ metas });
 }
 
-// Meta is ONLY for Kitsu now. Cinemeta handles TMDB beautifully!
+// Meta is ONLY for Kitsu now.
 app.get("/meta/:type/:id.json", async (req, res) => handleMeta(req, res));
 app.get("/:config/meta/:type/:id.json", async (req, res) => handleMeta(req, res));
 
@@ -179,7 +177,7 @@ async function handleMeta(req, res) {
 }
 
 // ----------------------------------------------------
-// MULTI-ENGINE SCRAPER (Torrentio + KnightCrawler + MediaFusion)
+// MULTI-ENGINE SCRAPER
 // ----------------------------------------------------
 app.get("/stream/:type/:id.json", async (req, res) => handleStream(req, res, null));
 app.get("/:config/stream/:type/:id.json", async (req, res) => handleStream(req, res, req.params.config));
@@ -248,7 +246,7 @@ async function handleStream(req, res, configStr) {
     // Native Scraper Fallback
     if (allStreams.length < 3 && mediaTitle) {
         if (isAnime) {
-            const queries = [`${mediaTitle} Hindi`, `${mediaTitle} ${episodeNum}`.trim(), mediaTitle];
+            const queries = [mediaTitle + " Hindi", mediaTitle + " " + episodeNum, mediaTitle];
             for (let q of queries) {
                 try {
                     let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(q)}&c=0_0&f=0`, { timeout: 4000 });
@@ -320,8 +318,8 @@ async function handleStream(req, res, configStr) {
 
         if (excludes.includes("cam") && (fullText.includes("cam") || fullText.includes("ts") || fullText.includes("hdcam"))) return;
 
-        let isHindi = /(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi|hin)/i.test(fullText);
-        let isSouth = /(telugu|tamil|malayalam|kannada|tam|tel|mal)/i.test(fullText);
+        let isHindi = /\b(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi|hin)\b/i.test(fullText);
+        let isSouth = /\b(telugu|tamil|malayalam|kannada|tam|tel|mal)\b/i.test(fullText);
 
         let langBadge = "🌐 MULTI AUDIO";
         let langRank = 1;
@@ -343,20 +341,17 @@ async function handleStream(req, res, configStr) {
         s.qRank = qRank;
         s.seeders = seeders;
 
-        let cleanTitle = s.title ? s.title.split('
-')[0].replace(/(Torrentio|Debrid|MediaFusion|KnightCrawler)/ig, 'AuraFlix') : 'Play Now';
+        // FIXED THE SYNTAX ERROR CAUSING DEPLOYMENT FAILURE: 
+        // using regex /\\r?\\n/ instead of hardcoded line breaks
+        let cleanTitle = s.title ? s.title.split(/\r?\n/)[0].replace(/\b(Torrentio|Debrid|MediaFusion|KnightCrawler)\b/ig, 'AuraFlix') : 'Play Now';
 
-        s.name = `🎬 AuraFlix VIP
-${langBadge}`;
-        s.title = `${quality} • ${modeTag}
-${cleanTitle}
-👤 ${seeders} Seeders`;
+        // using safe string concatenation
+        s.name = "🎬 AuraFlix VIP\n" + langBadge;
+        s.title = quality + " • " + modeTag + "\n" + cleanTitle + "\n👤 " + seeders + " Seeders";
 
         processedStreams.push(s);
     });
 
-    // ABSOLUTE GOD-MODE SORTING:
-    // 1. Priority Language (Hindi) 2. 4K/1080p Quality 3. Direct Links 4. High Seeders
     processedStreams.sort((a, b) => {
         if (b.langRank !== a.langRank) return b.langRank - a.langRank; 
         if (b.qRank !== a.qRank) return b.qRank - a.qRank;
@@ -370,7 +365,7 @@ ${cleanTitle}
 
 function renderConfigPage(res, currentConfig) {
     const configJson = JSON.stringify(currentConfig);
-    res.send(`
+    const html = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -381,6 +376,7 @@ function renderConfigPage(res, currentConfig) {
                 body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
                 .container { max-width: 800px; margin: 0 auto; background: #111827; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #1f2937; }
                 .header { text-align: center; margin-bottom: 30px; }
+                .logo { width: 100px; height: 100px; object-fit: contain; margin-bottom: 10px; border-radius: 15px; }
                 h1 { color: #f43f5e; margin: 0 0 10px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
                 p.desc { color: #94a3b8; font-size: 15px; margin: 0; }
                 .section { background: #1f2937; padding: 20px; border-radius: 12px; margin-bottom: 20px; border-left: 4px solid #f43f5e; }
@@ -400,6 +396,7 @@ function renderConfigPage(res, currentConfig) {
         <body>
             <div class="container">
                 <div class="header">
+                    <img src="https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png" alt="AuraFlix Logo" class="logo" onerror="this.style.display='none'">
                     <h1>AuraFlix Ultra VIP</h1>
                     <p class="desc">Integrated with MediaFusion & Torrentio for Direct Links (Pixeldrain/Mega) & P2P. Perfect Meta Fixed.</p>
                 </div>
@@ -460,7 +457,7 @@ function renderConfigPage(res, currentConfig) {
             </div>
 
             <script>
-                const initialConfig = ${configJson};
+                const initialConfig = ` + configJson + `;
                 
                 ['anime_airing', 'anime_trending', 'anime_movies', 'anime_popular', 'south_trending', 'south_new_releases', 'hindi_webseries', 'netflix_prime', 'hotstar_sonyliv', 'hollywood_hindi'].forEach(id => {
                     if(document.getElementById('cat_' + id)) {
@@ -516,8 +513,9 @@ function renderConfigPage(res, currentConfig) {
             </script>
         </body>
         </html>
-    `);
+    `;
+    res.send(html);
 }
 
 const PORT = process.env.PORT || 7000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log("Server running on port " + PORT));
