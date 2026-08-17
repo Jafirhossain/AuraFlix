@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-master-pro",
-  "version": "11.0.0",
-  "description": "The Ultimate Anime, Cartoon & South Hindi Streaming Engine with Direct Web & High-Speed P2P Dual Modes.",
+  "name": "auraflix-ultimate-debrid",
+  "version": "12.0.0",
+  "description": "Advanced Streaming Engine with Debrid Integration, Multi-Quality, and Zero Buffering.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
