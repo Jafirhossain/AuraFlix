@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-pure-free",
-  "version": "17.0.0",
-  "description": "100% Free Engine. No MediaFusion, No Paid APIs. Pure Torrentio, AnimeTosho & Custom Scrapers with TMDB to IMDb Translation.",
+  "name": "auraflix-ultimate-fixed",
+  "version": "13.0.0",
+  "description": "Zero Buffering Engine with Proxy Bypass and Perfect Metadata.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
