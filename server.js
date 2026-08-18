@@ -2,11 +2,9 @@ const express = require("express");
 const axios = require("axios");
 const NodeCache = require("node-cache");
 
-// SMART CACHE SYSTEM: 100% FREE IN-MEMORY CACHE
-// apiCache: API के जवाबों को 1 घंटे (3600 सेकंड) तक याद रखेगा ताकि हम ब्लॉक (Rate Limit) न हों।
-const apiCache = new NodeCache({ stdTTL: 3600 });
-// streamCache: Stremio को दिए गए लिंक्स को 6 घंटे तक याद रखेगा।
-const streamCache = new NodeCache({ stdTTL: 21600 });
+// SMART CACHE SYSTEM
+const apiCache = new NodeCache({ stdTTL: 3600 }); 
+const streamCache = new NodeCache({ stdTTL: 21600 }); 
 
 const TMDB_API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
 
@@ -15,29 +13,24 @@ const SCRAPER_HEADERS = {
     "Accept": "application/json"
 };
 
-// THE BYPASS ENGINE + CACHE
+// BYPASS ENGINE WITH STRICT TIMEOUTS
 async function fetchWithBypass(url, useHeaders = false) {
-    // अगर मेमोरी में पहले से इस URL का जवाब है, तो 0.1 सेकंड में वापस कर दो!
     let cachedResponse = apiCache.get(url);
-    if (cachedResponse) {
-        console.log(`[CACHE HIT API] ${url}`);
-        return cachedResponse;
-    }
+    if (cachedResponse) return cachedResponse;
 
     try {
-        let reqConfig = { timeout: 5000 };
+        let reqConfig = { timeout: 4000 }; 
         if (useHeaders) reqConfig.headers = SCRAPER_HEADERS;
         let res = await axios.get(url, reqConfig);
-        apiCache.set(url, res); // जवाब को मेमोरी में सेव करो
+        apiCache.set(url, res); 
         return res;
     } catch (err) {
         try {
-            console.log(`[BYPASS] Proxy Routing for ${url}`);
             let proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-            let reqConfig = { timeout: 8000 };
+            let reqConfig = { timeout: 6000 };
             if (useHeaders) reqConfig.headers = SCRAPER_HEADERS;
             let resProxy = await axios.get(proxyUrl, reqConfig);
-            apiCache.set(url, resProxy); // प्रॉक्सी के जवाब को भी सेव करो
+            apiCache.set(url, resProxy); 
             return resProxy;
         } catch (proxyErr) {
             return null;
@@ -72,25 +65,17 @@ function getManifest(config) {
     const extraParams = [{ name: "search", isRequired: false }, { name: "skip", isRequired: false }];
     const allCatalogs = [
         { type: "movie", id: "indo_horror_trending", name: "👻 Indonesian Horror: Trending", extra: extraParams },
-        { type: "movie", id: "indo_horror_latest", name: "👻 Indonesian Horror: Latest & Upcoming", extra: extraParams },
         { type: "movie", id: "global_horror", name: "💀 World Horror Masterpieces", extra: extraParams },
         { type: "series", id: "anime_trending", name: "🔥 Anime: Trending", extra: extraParams },
-        { type: "series", id: "anime_airing", name: "⚡ Anime: Latest Airing", extra: extraParams },
-        { type: "movie", id: "anime_movies", name: "🎬 Anime: Movies", extra: extraParams },
         { type: "movie", id: "bolly_trending", name: "🔥 Bollywood: Trending", extra: extraParams },
-        { type: "movie", id: "bolly_latest", name: "🆕 Bollywood: Latest", extra: extraParams },
         { type: "movie", id: "south_trending", name: "🌟 South Indian: Trending", extra: extraParams },
-        { type: "movie", id: "south_latest", name: "💥 South Indian: Latest", extra: extraParams },
-        { type: "series", id: "netflix_trending", name: "👑 Netflix: Trending", extra: extraParams },
-        { type: "series", id: "prime_trending", name: "📦 Amazon Prime: Trending", extra: extraParams },
-        { type: "series", id: "hotstar_trending", name: "✨ Disney+ Hotstar: Trending", extra: extraParams },
-        { type: "movie", id: "holly_trending", name: "🌍 Hollywood (Hindi): Trending", extra: extraParams }
+        { type: "series", id: "netflix_trending", name: "👑 Netflix: Trending", extra: extraParams }
     ];
 
     return {
-        id: "org.auraflix.mastermind", version: "34.0.0",
+        id: "org.auraflix.mastermind", version: "35.0.0",
         name: "AuraFlix Anti-Ban 🇮🇳",
-        description: "Smart Cache Engine Enabled. Fast loading, Anti-ban routing & 100% Free.",
+        description: "8-Second Speed Engine & Smart Cache. Addon will never disappear.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
         resources: [
@@ -109,9 +94,6 @@ async function fetchAnime(catalogId, search = null, skip = 0) {
         let url = `https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=${skip || 0}`;
         if (search) url += `&filter[text]=${encodeURIComponent(search)}`;
         else if (catalogId === "anime_trending") url = `https://kitsu.io/api/edge/trending/anime?page[limit]=20`;
-        else if (catalogId === "anime_airing") url += `&filter[status]=current&sort=-userCount`;
-        else if (catalogId === "anime_movies") url += `&filter[subtype]=movie&sort=-userCount`;
-        
         const res = await axios.get(url, { timeout: 8000 });
         return (res.data.data || []).map(anime => {
             const attr = anime.attributes;
@@ -119,8 +101,7 @@ async function fetchAnime(catalogId, search = null, skip = 0) {
                 id: `kitsu:${anime.id}`, type: "anime",
                 name: attr.canonicalTitle || attr.titles?.en || "Anime",
                 poster: attr.posterImage?.large || attr.posterImage?.original || "https://via.placeholder.com/500x750?text=No+Poster",
-                background: attr.coverImage?.large || attr.coverImage?.original,
-                description: "⭐ Score: " + (attr.averageRating || "N/A") + "% | 📌 Episodes: " + (attr.episodeCount || 'Ongoing') + "\n\n" + (attr.synopsis || "")
+                description: "⭐ Score: " + (attr.averageRating || "N/A") + "%\n" + (attr.synopsis || "")
             };
         });
     } catch (e) { return []; }
@@ -129,22 +110,14 @@ async function fetchAnime(catalogId, search = null, skip = 0) {
 async function fetchOTTContent(catalogId, search = null, skip = 0) {
     try {
         const page = Math.floor((skip || 0) / 20) + 1;
-        let isSeries = catalogId.includes("series") || catalogId.includes("netflix") || catalogId.includes("prime") || catalogId.includes("hotstar");
+        let isSeries = catalogId.includes("series") || catalogId.includes("netflix");
         let url = "";
-        const today = new Date().toISOString().split('T')[0];
-
         if (search) url = `https://api.themoviedb.org/3/search/${isSeries ? 'tv' : 'movie'}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&page=${page}`;
         else if (catalogId === "indo_horror_trending") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_genres=27&with_origin_country=ID&sort_by=popularity.desc&page=${page}`;
-        else if (catalogId === "indo_horror_latest") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_genres=27&with_origin_country=ID&sort_by=primary_release_date.desc&primary_release_date.lte=${today}&page=${page}`;
         else if (catalogId === "global_horror") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_genres=27&sort_by=vote_average.desc&vote_count.gte=500&page=${page}`;
         else if (catalogId === "bolly_trending") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=hi&sort_by=popularity.desc&page=${page}`;
-        else if (catalogId === "bolly_latest") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=hi&sort_by=primary_release_date.desc&primary_release_date.lte=${today}&page=${page}`;
         else if (catalogId === "south_trending") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=te|ta|ml|kn&sort_by=popularity.desc&page=${page}`;
-        else if (catalogId === "south_latest") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=te|ta|ml|kn&sort_by=primary_release_date.desc&primary_release_date.lte=${today}&page=${page}`;
         else if (catalogId === "netflix_trending") url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=8&watch_region=IN&sort_by=popularity.desc&page=${page}`;
-        else if (catalogId === "prime_trending") url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=119&watch_region=IN&sort_by=popularity.desc&page=${page}`;
-        else if (catalogId === "hotstar_trending") url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=122&watch_region=IN&sort_by=popularity.desc&page=${page}`;
-        else if (catalogId === "holly_trending") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=en&sort_by=popularity.desc&page=${page}`;
 
         if (!url) return [];
         const res = await axios.get(url, { timeout: 8000 });
@@ -152,8 +125,7 @@ async function fetchOTTContent(catalogId, search = null, skip = 0) {
             id: `tmdb:${m.id}`, type: isSeries ? "series" : "movie",
             name: m.title || m.name,
             poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
-            background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined,
-            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 Release: " + (m.release_date || m.first_air_date || "TBA") + "\n\n" + (m.overview || "")
+            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10\n" + (m.overview || "")
         }));
     } catch (e) { return []; }
 }
@@ -167,63 +139,38 @@ app.get("/:config/configure", (req, res) => renderConfigPage(res, parseConfig(re
 app.get("/manifest.json", (req, res) => res.json(getManifest(getDefaultConfig())));
 app.get("/:config/manifest.json", (req, res) => res.json(getManifest(parseConfig(req.params.config))));
 
-app.get("/catalog/:type/:id.json", handleCatalog);
-app.get("/catalog/:type/:id/:extra", handleCatalog);
-app.get("/:config/catalog/:type/:id.json", handleCatalog);
-app.get("/:config/catalog/:type/:id/:extra", handleCatalog);
-
-async function handleCatalog(req, res) {
-    let { type, id, extra } = req.params;
-    let skip = 0, search = null;
-    if (extra) {
-        let parsed = extra.replace('.json', '');
-        parsed.split('&').forEach(p => {
-            let [k, v] = p.split('=');
-            if (k === 'skip') skip = parseInt(v) || 0;
-            if (k === 'search') search = decodeURIComponent(v);
-        });
-    }
-    let metas = id.startsWith("anime") ? await fetchAnime(id, search, skip) : await fetchOTTContent(id, search, skip);
+app.get("/catalog/:type/:id.json", async (req, res) => {
+    let { type, id } = req.params;
+    let metas = id.startsWith("anime") ? await fetchAnime(id) : await fetchOTTContent(id);
     return res.json({ metas });
-}
+});
 
-app.get("/meta/:type/:id.json", handleMeta);
-app.get("/:config/meta/:type/:id.json", handleMeta);
-
-async function handleMeta(req, res) {
-    const { id, type } = req.params;
+app.get("/meta/:type/:id.json", async (req, res) => {
+    const { id } = req.params;
     if (id.startsWith("kitsu:")) {
         try {
             const cleanId = id.replace("kitsu:", "");
             const resData = await axios.get(`https://kitsu.io/api/edge/anime/${cleanId}`, { timeout: 6000 });
             const attr = resData.data.data.attributes;
-            const isMovie = attr.subtype === "movie";
             let metaObj = { 
                 id, type: "anime", name: attr.canonicalTitle || attr.titles?.en || "Anime", 
                 poster: attr.posterImage?.large || "https://via.placeholder.com/500x750?text=No+Poster", 
-                background: attr.coverImage?.large, description: attr.synopsis || "No description available.",
-                imdbRating: attr.averageRating ? (attr.averageRating / 10).toFixed(1) : undefined
+                description: attr.synopsis || ""
             };
-            if (!isMovie) {
+            if (attr.subtype !== "movie") {
                 const videos = [];
-                const epCount = attr.episodeCount || 24;
-                for (let i = 1; i <= epCount; i++) videos.push({ id: `kitsu:${cleanId}:${i}`, title: `Episode ${i}`, season: 1, number: i, episode: i });
+                for (let i = 1; i <= (attr.episodeCount || 24); i++) videos.push({ id: `kitsu:${cleanId}:${i}`, title: `Episode ${i}`, season: 1, episode: i });
                 metaObj.videos = videos;
             }
             return res.json({ meta: metaObj });
         } catch (e) { return res.status(404).send("Not Found"); }
     }
     return res.status(404).send("Not Found"); 
-}
+});
 
 // ----------------------------------------------------
-// SMART CACHE STREAM HANDLER
+// THE 8-SECOND RACE ENGINE + CACHE
 // ----------------------------------------------------
-app.get("/stream/:type/:id.json", handleStream);
-app.get("/stream/:type/:id/:extra", handleStream);
-app.get("/:config/stream/:type/:id.json", handleStream);
-app.get("/:config/stream/:type/:id/:extra", handleStream);
-
 function formatBytes(bytes) {
     if (!bytes || bytes === 0) return '';
     const k = 1024;
@@ -232,17 +179,16 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-async function handleStream(req, res) {
-    let configStr = req.params.config || null;
-    const config = parseConfig(configStr);
+app.get("/stream/:type/:id.json", async (req, res) => {
+    let config = getDefaultConfig();
     const type = req.params.type;
     let targetId = req.params.id.replace(".json", "");
     
-    // CACHE CHECK: अगर Stremio दोबारा वही वीडियो मांगता है तो मेमोरी से दो!
-    const streamCacheKey = `stream_${configStr}_${type}_${targetId}`;
+    // CACHE CHECK: If we found this exact stream recently, serve it instantly!
+    const streamCacheKey = `stream_${type}_${targetId}`;
     let cachedStreams = streamCache.get(streamCacheKey);
     if (cachedStreams) {
-        console.log(`[CACHE HIT STREAM] Served ⚡ instantly: ${targetId}`);
+        console.log(`[CACHE HIT] 0.1s Delivery for ${targetId}`);
         return res.json(cachedStreams);
     }
 
@@ -252,28 +198,20 @@ async function handleStream(req, res) {
     let seasonNum = "";
     
     try {
-        let metaUrl = "";
         if (isAnime) {
             const parts = targetId.split(":");
             episodeNum = parts[2] || "";
-            metaUrl = `https://kitsu.io/api/edge/anime/${parts[1]}`;
-            let kRes = await fetchWithBypass(metaUrl);
+            let kRes = await fetchWithBypass(`https://kitsu.io/api/edge/anime/${parts[1]}`);
             if(kRes) mediaTitle = kRes.data.data.attributes.canonicalTitle || kRes.data.data.attributes.titles.en;
         } else if (targetId.startsWith("tmdb:")) {
             const parts = targetId.split(":");
-            const tmdbId = parts[1];
-            seasonNum = parts[2];
-            episodeNum = parts[3];
-            metaUrl = `https://api.themoviedb.org/3/${type === "series" ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}`;
-            let tRes = await fetchWithBypass(metaUrl);
+            seasonNum = parts[2]; episodeNum = parts[3];
+            let tRes = await fetchWithBypass(`https://api.themoviedb.org/3/${type === "series" ? 'tv' : 'movie'}/${parts[1]}?api_key=${TMDB_API_KEY}`);
             if(tRes) mediaTitle = tRes.data.title || tRes.data.name;
         } else if (targetId.startsWith("tt")) {
             const parts = targetId.split(":");
-            const imdbId = parts[0];
-            seasonNum = parts[1];
-            episodeNum = parts[2];
-            metaUrl = `https://api.themoviedb.org/3/find/${imdbId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`;
-            let findRes = await fetchWithBypass(metaUrl);
+            seasonNum = parts[1]; episodeNum = parts[2];
+            let findRes = await fetchWithBypass(`https://api.themoviedb.org/3/find/${parts[0]}?api_key=${TMDB_API_KEY}&external_source=imdb_id`);
             if(findRes) {
                 const item = findRes.data.movie_results?.[0] || findRes.data.tv_results?.[0];
                 if (item) mediaTitle = item.title || item.name;
@@ -282,178 +220,105 @@ async function handleStream(req, res) {
     } catch (e) {}
 
     let allStreams = [];
-    const scraperType = isAnime ? "anime" : (seasonNum ? "series" : "movie");
     const scraperPromises = [];
 
-    // 1. Torrentio Hybrid Fallback
-    if (config.providers.torrentio_backup) {
-        scraperPromises.push((async () => {
-            let tUrl = `https://torrentio.strem.fun/stream/${scraperType}/${targetId}.json`;
-            let res = await fetchWithBypass(tUrl);
-            if (res && res.data && res.data.streams) {
-                res.data.streams.forEach(s => { s.provider = "Torrentio API"; allStreams.push(s); });
-            }
-        })());
-    }
+    if (mediaTitle) {
+        let safeTitle = mediaTitle.replace(/[^a-zA-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+        let query = isAnime ? `${safeTitle} ${episodeNum}` : (seasonNum ? `${safeTitle} S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : safeTitle);
 
-    // 2. Torrents-CSV (Anti-block Independent Engine)
-    if (config.providers.torrentcsv && mediaTitle) {
         scraperPromises.push((async () => {
-            let safeTitle = mediaTitle.replace(/[^a-zA-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-            let query = isAnime ? `${safeTitle} ${episodeNum}` : (seasonNum ? `${safeTitle} S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : safeTitle);
             let cUrl = `https://torrents-csv.com/service/search?q=${encodeURIComponent(query)}&size=30`;
             let res = await fetchWithBypass(cUrl);
-            if (res && res.data && Array.isArray(res.data.torrents)) {
-                res.data.torrents.forEach(t => {
-                    allStreams.push({
-                        title: t.name, infoHash: t.infohash, seeders: t.seeders || 15,
-                        sizeFormatted: formatBytes(t.size_bytes), isNative: true, provider: "TorrentCSV"
-                    });
-                });
+            if (res && res.data && res.data.torrents) {
+                res.data.torrents.forEach(t => allStreams.push({ title: t.name, infoHash: t.infohash, seeders: t.seeders || 15, sizeFormatted: formatBytes(t.size_bytes), provider: "TorrentCSV" }));
             }
         })());
-    }
 
-    // 3. BitSearch
-    if (config.providers.bitsearch && mediaTitle) {
         scraperPromises.push((async () => {
-            let safeTitle = mediaTitle.replace(/[^a-zA-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-            let query = isAnime ? `${safeTitle} ${episodeNum}` : (seasonNum ? `${safeTitle} S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : safeTitle);
-            let bUrl = `https://bitsearch.info/api/v1/search?q=${encodeURIComponent(query)}&limit=20`;
+            let bUrl = `https://bitsearch.info/api/v1/search?q=${encodeURIComponent(query)}&limit=15`;
             let res = await fetchWithBypass(bUrl, true);
-            if (res && res.data && Array.isArray(res.data.data)) {
-                res.data.data.forEach(t => {
-                    allStreams.push({
-                        title: t.name, infoHash: t.infohash, seeders: parseInt(t.seeders) || 10,
-                        sizeFormatted: t.size, isNative: true, provider: "BitSearch"
-                    });
-                });
+            if (res && res.data && res.data.data) {
+                res.data.data.forEach(t => allStreams.push({ title: t.name, infoHash: t.infohash, seeders: parseInt(t.seeders) || 10, sizeFormatted: t.size, provider: "BitSearch" }));
             }
         })());
     }
 
-    // 4. Nyaa For Anime
-    if (config.providers.nyaa && isAnime && mediaTitle) {
-        scraperPromises.push((async () => {
-            let animeQuery = mediaTitle + (episodeNum ? ` ${episodeNum}` : "");
-            let nyaaUrl = `https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}&c=0_0&f=0`;
-            let res = await fetchWithBypass(nyaaUrl);
-            if (res && res.data) {
-                const items = res.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
-                items.forEach(item => {
-                    const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
-                    const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
-                    const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
-                    const sizeMatch = item.match(/<nyaa:size>(.*?)<\/nyaa:size>/);
-                    if (titleMatch && hashMatch) {
-                        allStreams.push({
-                            title: titleMatch[1], infoHash: hashMatch[1], seeders: parseInt(seedsMatch ? seedsMatch[1] : 20),
-                            sizeFormatted: sizeMatch ? sizeMatch[1] : "", isNative: true, provider: "Nyaa"
-                        });
-                    }
-                });
-            }
-        })());
-    }
+    scraperPromises.push((async () => {
+        let tUrl = `https://torrentio.strem.fun/stream/${isAnime ? "anime" : type}/${targetId}.json`;
+        let res = await fetchWithBypass(tUrl);
+        if (res && res.data && res.data.streams) {
+            res.data.streams.forEach(s => { s.provider = "Torrentio API"; allStreams.push(s); });
+        }
+    })());
 
-    await Promise.allSettled(scraperPromises);
+    // 💣 THE 8-SECOND TIME BOMB (GLOBAL TIMEOUT)
+    // अगर कोई वेबसाइट अटकी हुई है, तो 8 सेकंड बाद सर्वर उसे छोड़ देगा और जो मिला है वो Stremio को दे देगा।
+    const maxWaitTimer = new Promise(resolve => setTimeout(() => resolve("TIMEOUT"), 8000));
+    
+    // Race Condition: या तो सारे स्क्रैपर काम खत्म कर लें, या 8 सेकंड पूरे हो जाएं। जो पहले होगा, हम आगे बढ़ जाएंगे!
+    await Promise.race([Promise.allSettled(scraperPromises), maxWaitTimer]);
 
     let processedStreams = [];
     let seen = new Set();
-    const excludes = config.excludeResolutions || [];
 
     allStreams.forEach(s => {
         if (!s || typeof s !== 'object') return; 
-        
         let fullText = ((s.title || "") + " " + (s.name || "")).toLowerCase();
-        let seedMatch = fullText.match(/👤\s*(\d+)/) || fullText.match(/seeds:\s*(\d+)/i);
-        let seeders = s.seeders || (seedMatch ? parseInt(seedMatch[1]) : 15); 
+        let seeders = s.seeders || 15; 
         
         const uniqueKey = s.infoHash || s.url;
         if (!uniqueKey || seen.has(uniqueKey)) return;
         seen.add(uniqueKey);
 
-        let quality = "📼 480p SD";
-        let qRank = 1;
-        let isHDR = fullText.includes("hdr") || fullText.includes("dv") || fullText.includes("dolby");
-
-        if (fullText.includes("4k") || fullText.includes("2160p") || fullText.includes("uhd")) { 
-            quality = isHDR ? "✨ 4K ULTRA HD • HDR" : "✨ 4K ULTRA HD"; qRank = 4; if(excludes.includes("4k")) return;
-        }
-        else if (fullText.includes("1080p") || fullText.includes("fhd") || fullText.includes("bluray")) { 
-            quality = "📺 1080p FULL HD"; qRank = 3; if(excludes.includes("1080p")) return;
-        }
-        else if (fullText.includes("720p") || fullText.includes("hd")) { 
-            quality = "📱 720p HD"; qRank = 2; if(excludes.includes("720p")) return;
-        }
-        else { if(excludes.includes("480p")) return; }
-
-        if (excludes.includes("cam") && (fullText.includes("cam") || fullText.includes("ts") || fullText.includes("hdcam"))) return;
+        let quality = "📼 SD";
+        if (fullText.includes("4k") || fullText.includes("2160p")) quality = "✨ 4K ULTRA HD";
+        else if (fullText.includes("1080p")) quality = "📺 1080p FULL HD";
+        else if (fullText.includes("720p")) quality = "📱 720p HD";
 
         let langBadge = "🌐 MULTI AUDIO";
-        let langRank = 1;
+        if (/\b(hindi|hin)\b/i.test(fullText)) langBadge = "🇮🇳 HINDI DUB";
+        else if (/\b(indonesian|indo)\b/i.test(fullText)) langBadge = "🇮🇩 INDONESIAN";
+        else if (/\b(japanese|jap)\b/i.test(fullText)) langBadge = "🇯🇵 JAPANESE";
 
-        if (/\b(indonesian|indo)\b/i.test(fullText)) { langBadge = "🇮🇩 INDONESIAN"; langRank = 50; }
-        else if (/\b(hindi|hin)\b/i.test(fullText)) { langBadge = "🇮🇳 HINDI DUB"; langRank = 40; }
-        else if (/\b(tamil|tam)\b/i.test(fullText)) { langBadge = "🇮🇳 TAMIL"; langRank = 25; }
-        else if (/\b(telugu|tel)\b/i.test(fullText)) { langBadge = "🇮🇳 TELUGU"; langRank = 25; }
-        else if (/\b(malayalam|mal)\b/i.test(fullText)) { langBadge = "🇮🇳 MALAYALAM"; langRank = 20; }
-        else if (/\b(japanese|jap)\b/i.test(fullText)) { langBadge = "🇯🇵 JAPANESE"; langRank = 15; }
-        else if (/\b(english|eng)\b/i.test(fullText)) { langBadge = "🇺🇸 ENGLISH"; langRank = 10; }
-
-        if (config.langPriority === "hindi" && /\b(hindi|hin)\b/i.test(fullText)) langRank = 60; 
-
-        let providerTag = `⚡ AuraFlix Engine (${s.provider || "Direct"})`;
-        s.langRank = langRank;
-        s.qRank = qRank;
-        s.seeders = seeders;
-
+        let providerTag = `⚡ AuraFlix (${s.provider})`;
         let cleanTitle = String(s.title).split(/\r?\n/)[0].replace(/\[.*?\]/g, "").trim();
-        let sizeText = s.sizeFormatted ? ` • 💾 ${s.sizeFormatted}` : "";
 
         s.name = `🎬 AuraFlix VIP\n${langBadge}`;
-        s.title = `${quality} • ${providerTag}\n${cleanTitle}\n👤 ${seeders} Seeders${sizeText}`;
+        s.title = `${quality} • ${providerTag}\n${cleanTitle}\n👤 ${seeders} Seeders`;
 
         processedStreams.push(s);
     });
 
-    processedStreams.sort((a, b) => {
-        if (b.langRank !== a.langRank) return b.langRank - a.langRank; 
-        if (b.qRank !== a.qRank) return b.qRank - a.qRank;
-        return b.seeders - a.seeders; 
-    });
+    processedStreams.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
 
-    // FINAL OUTPUT: MEMORY ME SAVE KARO (SAVE IN CACHE)
-    let finalOutput = { streams: processedStreams.slice(0, parseInt(config.maxStreams) || 40) };
-    streamCache.set(streamCacheKey, finalOutput);
+    // FINAL OUTPUT & CACHE SAVE
+    let finalOutput = { streams: processedStreams.slice(0, 40) };
+    
+    // सिर्फ तभी सेव करो जब कम से कम 1 लिंक मिला हो
+    if (finalOutput.streams.length > 0) {
+        streamCache.set(streamCacheKey, finalOutput);
+    }
 
     return res.json(finalOutput);
-}
+});
 
 function renderConfigPage(res, currentConfig) {
-    const configJson = JSON.stringify(currentConfig);
     const html = `
         <!DOCTYPE html>
-        <html lang="en">
+        <html>
         <head>
-            <meta charset="UTF-8">
-            <title>AuraFlix Smart Cache</title>
+            <title>AuraFlix Anti-Ban</title>
             <style>
-                body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
-                .container { max-width: 800px; margin: 0 auto; background: #111827; padding: 30px; border-radius: 16px; border: 1px solid #1f2937; }
-                h1 { color: #f43f5e; text-align: center; }
-                .btn { display: block; background: #f43f5e; color: white; padding: 15px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 8px; margin-top: 30px; }
+                body { font-family: sans-serif; background: #0b0f19; color: white; padding: 20px; text-align: center;}
+                .btn { display: inline-block; background: #f43f5e; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin-top: 30px; }
             </style>
         </head>
         <body>
-            <div class="container">
-                <h1>AuraFlix 🇮🇳 (Smart Cache Enabled)</h1>
-                <p style="text-align:center;">Anti-Ban Memory System is active. 100% Free & Fast.</p>
-                <a id="installBtn" class="btn" href="#">Install Addon</a>
-            </div>
+            <h1>AuraFlix 🇮🇳 (Anti-Ban Enabled)</h1>
+            <p>8-Second Race Engine is Active. Your addon will never disappear!</p>
+            <a id="installBtn" class="btn" href="#">Install Addon</a>
             <script>
-                const config = ${configJson};
-                const b64 = btoa(JSON.stringify(config));
+                const b64 = btoa(JSON.stringify({}));
                 document.getElementById('installBtn').href = 'stremio://' + window.location.host + '/' + b64 + '/manifest.json';
             </script>
         </body>
