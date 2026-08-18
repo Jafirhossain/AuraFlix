@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-100-percent-free",
-  "version": "22.0.0",
-  "description": "100% Free & Unlimited Scraper Engine (Torrentio + MediaFusion + BitSearch). Zero Paid APIs. Highly Stable.",
+  "name": "auraflix-ultimate-stable",
+  "version": "23.0.0",
+  "description": "100% Free Scraper Engine. Fixed TMDB Catalog Logic, Working Links.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
