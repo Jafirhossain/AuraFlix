@@ -4,8 +4,8 @@ const axios = require("axios");
 const TMDB_API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
 
 const SCRAPER_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "application/json"
 };
 
 function getDefaultConfig() {
@@ -20,7 +20,7 @@ function getDefaultConfig() {
             hotstar_trending: true, holly_trending: true
         },
         providers: {
-            bitsearch: true, nyaa: true, yts: true, mediafusion: true
+            torrentcsv: true, nyaa: true, yts: true, bitsearch: true
         },
         langPriority: "hindi", 
         excludeResolutions: []
@@ -42,40 +42,28 @@ function parseConfig(configStr) {
 function getManifest(config) {
     const extraParams = [{ name: "search", isRequired: false }, { name: "skip", isRequired: false }];
     
-    // INDEPENDENT PROFESSIONAL CATALOGS WITH INDONESIAN HORROR VAULT
     const allCatalogs = [
-        // 🇮🇩 INDONESIAN HORROR VAULT
         { type: "movie", id: "indo_horror_trending", name: "👻 Indonesian Horror: Trending", extra: extraParams },
         { type: "movie", id: "indo_horror_latest", name: "👻 Indonesian Horror: Latest & Upcoming", extra: extraParams },
-
-        // 💀 GLOBAL HORROR
         { type: "movie", id: "global_horror", name: "💀 World Horror Masterpieces", extra: extraParams },
-
-        // ⚡ ANIME
         { type: "series", id: "anime_trending", name: "🔥 Anime: Trending", extra: extraParams },
         { type: "series", id: "anime_airing", name: "⚡ Anime: Latest Airing", extra: extraParams },
         { type: "movie", id: "anime_movies", name: "🎬 Anime: Movies", extra: extraParams },
-
-        // 🇮🇳 BOLLYWOOD & SOUTH
         { type: "movie", id: "bolly_trending", name: "🔥 Bollywood: Trending", extra: extraParams },
         { type: "movie", id: "bolly_latest", name: "🆕 Bollywood: Latest", extra: extraParams },
         { type: "movie", id: "south_trending", name: "🌟 South Indian: Trending", extra: extraParams },
         { type: "movie", id: "south_latest", name: "💥 South Indian: Latest", extra: extraParams },
-
-        // 👑 OTT PLATFORMS
         { type: "series", id: "netflix_trending", name: "👑 Netflix: Trending", extra: extraParams },
         { type: "series", id: "prime_trending", name: "📦 Amazon Prime: Trending", extra: extraParams },
         { type: "series", id: "hotstar_trending", name: "✨ Disney+ Hotstar: Trending", extra: extraParams },
-
-        // 🌍 HOLLYWOOD
         { type: "movie", id: "holly_trending", name: "🌍 Hollywood (Hindi): Trending", extra: extraParams }
     ];
 
     return {
-        id: "org.auraflix.independent",
-        version: "30.0.0",
-        name: "AuraFlix Independent 🇮🇳",
-        description: "Self-Hosted Independent Engine with Indonesian Horror Vault & Direct Multi-Source Scraper.",
+        id: "org.auraflix.mastermind",
+        version: "31.0.0",
+        name: "AuraFlix Private API 🇮🇳",
+        description: "100% Independent Self-Hosted Tracker API. No Middlemen.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
         resources: [
@@ -230,12 +218,20 @@ async function handleMeta(req, res) {
 }
 
 // ----------------------------------------------------
-// INDEPENDENT DIRECT SCRAPER ENGINE (NO DEPENDENCY)
+// THE TRUE INDEPENDENT SCRAPER API
 // ----------------------------------------------------
 app.get("/stream/:type/:id.json", handleStream);
 app.get("/stream/:type/:id/:extra", handleStream);
 app.get("/:config/stream/:type/:id.json", handleStream);
 app.get("/:config/stream/:type/:id/:extra", handleStream);
+
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return 'Unknown Size';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 async function handleStream(req, res) {
     let configStr = req.params.config || null;
@@ -284,10 +280,14 @@ async function handleStream(req, res) {
         console.log("Resolution error:", e.message);
     }
 
+    if (!mediaTitle) {
+        return res.json({ streams: [] });
+    }
+
     let allStreams = [];
     
     let cleanQuery = mediaTitle;
-    if (releaseYear) cleanQuery += ` ${releaseYear}`;
+    if (releaseYear && type === "movie") cleanQuery += ` ${releaseYear}`;
     if (seasonNum && episodeNum) {
         cleanQuery += ` S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}`;
     }
@@ -297,84 +297,110 @@ async function handleStream(req, res) {
         mediaTitle + (seasonNum ? ` S${seasonNum}` : "")
     ];
 
-    // INDEPENDENT SCRAPER 1: BitSearch Direct API Scraper
-    if (config.providers.bitsearch && cleanQuery) {
-        for (let q of queriesToRun) {
-            try {
-                let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(q)}&sort=seeders&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
-                if (bitRes.data && bitRes.data.data && Array.isArray(bitRes.data.data)) {
-                    bitRes.data.data.forEach(t => {
-                        allStreams.push({
-                            title: t.name,
-                            infoHash: t.infohash,
-                            seeders: parseInt(t.seeders) || 10,
-                            size: t.size,
-                            isNative: true,
-                            provider: "BitSearch"
-                        });
-                    });
-                }
-            } catch(e) {}
-            if (allStreams.length > 15) break;
-        }
-    }
+    const scraperPromises = [];
 
-    // INDEPENDENT SCRAPER 2: YTS API for Movies
-    if (config.providers.yts && !isAnime && mediaTitle && type === "movie") {
-        try {
-            let ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
-            if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
-                ytsRes.data.data.movies.forEach(m => {
-                    if (m.torrents && Array.isArray(m.torrents)) {
-                        m.torrents.forEach(t => {
+    // 1. API: Torrents-CSV (Anti-Block Public API)
+    if (config.providers.torrentcsv) {
+        scraperPromises.push((async () => {
+            for (let q of queriesToRun) {
+                try {
+                    let csvRes = await axios.get(`https://torrents-csv.com/service/search?q=${encodeURIComponent(q)}&size=30`, { timeout: 6000 });
+                    if (csvRes.data && Array.isArray(csvRes.data.torrents)) {
+                        csvRes.data.torrents.forEach(t => {
                             allStreams.push({
-                                title: `${m.title} [${t.quality}] [${t.type}] • ${t.size}`,
-                                infoHash: t.hash,
-                                seeders: t.seeds || 25,
+                                title: t.name,
+                                infoHash: t.infohash,
+                                seeders: t.seeders || 15,
+                                sizeFormatted: formatBytes(t.size_bytes),
                                 isNative: true,
-                                provider: "YTS"
+                                provider: "TorrentCSV"
                             });
                         });
                     }
-                });
+                } catch(e) {}
+                if(allStreams.length > 5) break;
             }
-        } catch(e) {}
+        })());
     }
 
-    // INDEPENDENT SCRAPER 3: Nyaa.si RSS for Anime
-    if (config.providers.nyaa && isAnime && mediaTitle) {
-        try {
-            let animeQuery = mediaTitle + (episodeNum ? ` ${episodeNum}` : "");
-            let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}&c=0_0&f=0`, { timeout: 4000 });
-            const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
-            items.forEach(item => {
-                const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
-                const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
-                const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
-                if (titleMatch && hashMatch) {
-                    allStreams.push({
-                        title: titleMatch[1],
-                        infoHash: hashMatch[1],
-                        seeders: parseInt(seedsMatch ? seedsMatch[1] : 20),
-                        isNative: true,
-                        provider: "Nyaa"
+    // 2. API: BitSearch (Backup)
+    if (config.providers.bitsearch) {
+        scraperPromises.push((async () => {
+            for (let q of queriesToRun) {
+                try {
+                    let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(q)}&sort=seeders&limit=20`, { headers: SCRAPER_HEADERS, timeout: 6000 });
+                    if (bitRes.data && bitRes.data.data && Array.isArray(bitRes.data.data)) {
+                        bitRes.data.data.forEach(t => {
+                            allStreams.push({
+                                title: t.name,
+                                infoHash: t.infohash,
+                                seeders: parseInt(t.seeders) || 10,
+                                sizeFormatted: t.size,
+                                isNative: true,
+                                provider: "BitSearch"
+                            });
+                        });
+                    }
+                } catch(e) {}
+                if(allStreams.length > 5) break;
+            }
+        })());
+    }
+
+    // 3. API: YTS (For Movies only)
+    if (config.providers.yts && !isAnime && type === "movie") {
+        scraperPromises.push((async () => {
+            try {
+                let ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(mediaTitle)}`, { timeout: 5000 });
+                if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
+                    ytsRes.data.data.movies.forEach(m => {
+                        if (m.torrents && Array.isArray(m.torrents)) {
+                            m.torrents.forEach(t => {
+                                allStreams.push({
+                                    title: `${m.title} [${t.quality}] [${t.type}]`,
+                                    infoHash: t.hash,
+                                    seeders: t.seeds || 25,
+                                    sizeFormatted: t.size,
+                                    isNative: true,
+                                    provider: "YTS"
+                                });
+                            });
+                        }
                     });
                 }
-            });
-        } catch(e) {}
+            } catch(e) {}
+        })());
     }
 
-    // INDEPENDENT SCRAPER 4: MediaFusion Public Direct Instance (As fallback)
-    if (config.providers.mediafusion) {
-        try {
-            let mfRes = await axios.get(`https://mediafusion.elfhosted.com/stream/${isAnime ? "anime" : type}/${targetId}.json`, { timeout: 5000 });
-            if (mfRes.data && mfRes.data.streams && Array.isArray(mfRes.data.streams)) {
-                mfRes.data.streams.forEach(s => {
-                    if (s.url || s.infoHash) allStreams.push(s);
+    // 4. API: Nyaa.si (For Anime only)
+    if (config.providers.nyaa && isAnime) {
+        scraperPromises.push((async () => {
+            try {
+                let animeQuery = mediaTitle + (episodeNum ? ` ${episodeNum}` : "");
+                let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}&c=0_0&f=0`, { timeout: 5000 });
+                const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
+                items.forEach(item => {
+                    const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
+                    const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
+                    const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
+                    const sizeMatch = item.match(/<nyaa:size>(.*?)<\/nyaa:size>/);
+                    if (titleMatch && hashMatch) {
+                        allStreams.push({
+                            title: titleMatch[1],
+                            infoHash: hashMatch[1],
+                            seeders: parseInt(seedsMatch ? seedsMatch[1] : 20),
+                            sizeFormatted: sizeMatch ? sizeMatch[1] : "",
+                            isNative: true,
+                            provider: "Nyaa"
+                        });
+                    }
                 });
-            }
-        } catch(e) {}
+            } catch(e) {}
+        })());
     }
+
+    // Wait for all independent scrapers to finish
+    await Promise.allSettled(scraperPromises);
 
     let processedStreams = [];
     let seen = new Set();
@@ -384,17 +410,13 @@ async function handleStream(req, res) {
         if (!s || typeof s !== 'object') return; 
         
         let rawTitle = (s.title || "").toLowerCase();
-        let rawName = (s.name || "").toLowerCase();
-        let fullText = rawTitle + " " + rawName + " " + (s.description || "").toLowerCase();
+        let fullText = rawTitle;
 
-        let seedMatch = rawTitle.match(/👤\s*(\d+)/) || rawTitle.match(/seeds:\s*(\d+)/i);
-        let seeders = s.seeders || (seedMatch ? parseInt(seedMatch[1]) : 15); 
+        let seeders = s.seeders || 15; 
         
-        let isDirect = Boolean(s.url) || fullText.includes("pixeldrain") || fullText.includes("mega") || fullText.includes("direct");
-
-        const uniqueKey = s.infoHash || s.url || fullText;
-        if (uniqueKey && seen.has(uniqueKey)) return;
-        if (uniqueKey) seen.add(uniqueKey);
+        const uniqueKey = s.infoHash;
+        if (!uniqueKey || seen.has(uniqueKey)) return;
+        seen.add(uniqueKey);
 
         let quality = "📼 480p SD";
         let qRank = 1;
@@ -421,7 +443,7 @@ async function handleStream(req, res) {
 
         if (excludes.includes("cam") && (fullText.includes("cam") || fullText.includes("ts") || fullText.includes("hdcam"))) return;
 
-        // MULTI-LANGUAGE FLAGS & COUNTRY DETECTION (🇮🇩 INDONESIAN, 🇮🇳 HINDI, etc.)
+        // PRIVATE API FLAG DETECTOR
         let langBadge = "🌐 MULTI AUDIO";
         let langRank = 1;
 
@@ -439,19 +461,16 @@ async function handleStream(req, res) {
             langRank = 60; 
         }
 
-        let providerTag = "🚀 P2P STREAM";
-        if (s.isNative) providerTag = `⚡ ${s.provider.toUpperCase()} (Scraper)`;
-        if (isDirect) providerTag = "⚡ DIRECT WEB LINK";
-
+        let providerTag = `⚡ ${s.provider.toUpperCase()} (API)`;
         s.langRank = langRank;
         s.qRank = qRank;
         s.seeders = seeders;
 
-        let rawTitleStr = String(s.title || "Play Now");
-        let cleanTitle = rawTitleStr.split(/\r?\n/)[0];
+        let cleanTitle = String(s.title).replace(/\./g, ' ');
+        let sizeText = s.sizeFormatted ? ` • 💾 ${s.sizeFormatted}` : "";
 
-        s.name = `🎬 AuraFlix Independent\n${langBadge}`;
-        s.title = `${quality} • ${providerTag}\n${cleanTitle}\n👤 ${seeders} Seeders`;
+        s.name = `🎬 Private API\n${langBadge}`;
+        s.title = `${quality} • ${providerTag}\n${cleanTitle}\n👤 ${seeders} Seeders${sizeText}`;
 
         processedStreams.push(s);
     });
@@ -459,8 +478,6 @@ async function handleStream(req, res) {
     processedStreams.sort((a, b) => {
         if (b.langRank !== a.langRank) return b.langRank - a.langRank; 
         if (b.qRank !== a.qRank) return b.qRank - a.qRank;
-        if (b.url && !a.url) return 1; 
-        if (!b.url && a.url) return -1;
         return b.seeders - a.seeders; 
     });
 
@@ -475,7 +492,7 @@ function renderConfigPage(res, currentConfig) {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>AuraFlix Independent Settings</title>
+            <title>AuraFlix Private API Settings</title>
             <style>
                 body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
                 .container { max-width: 800px; margin: 0 auto; background: #111827; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #1f2937; }
@@ -503,28 +520,25 @@ function renderConfigPage(res, currentConfig) {
             <div class="container">
                 <div class="header">
                     <img src="https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png" alt="AuraFlix Logo" class="logo" onerror="this.style.display='none'">
-                    <h1>AuraFlix Independent 🇮🇳</h1>
-                    <p class="desc">Self-Hosted Engine with Indonesian Horror Vault & Multi-Source Scraper.</p>
+                    <h1>AuraFlix Private API 🇮🇳</h1>
+                    <p class="desc">100% Independent Self-Hosted Scraper. No Middlemen.</p>
                 </div>
                 
                 <div class="section">
-                    <div class="section-title">🔍 Independent Scraper Engines</div>
+                    <div class="section-title">🔍 Private API Sources</div>
                     <div class="provider-split">
                         <div class="provider-box">
-                            <h3 style="color:#38bdf8;">🚀 P2P & Torrent Scrapers</h3>
-                            <label><input type="checkbox" id="prov_bitsearch"> BitSearch Direct API Scraper</label>
-                            <label><input type="checkbox" id="prov_nyaa"> Nyaa.si Anime RSS Scraper</label>
-                            <label><input type="checkbox" id="prov_yts"> YTS Movie API Scraper</label>
-                        </div>
-                        <div class="provider-box">
-                            <h3 style="color:#a3e635;">⚡ Web Stream Engines</h3>
-                            <label><input type="checkbox" id="prov_mediafusion"> MediaFusion Direct Fallback</label>
+                            <h3 style="color:#38bdf8;">🚀 Independent Trackers</h3>
+                            <label><input type="checkbox" id="prov_torrentcsv"> Torrents-CSV (Anti-Block API)</label>
+                            <label><input type="checkbox" id="prov_bitsearch"> BitSearch API (Fallback)</label>
+                            <label><input type="checkbox" id="prov_nyaa"> Nyaa.si Anime Engine</label>
+                            <label><input type="checkbox" id="prov_yts"> YTS Movie Engine</label>
                         </div>
                     </div>
                 </div>
 
                 <div class="section">
-                    <div class="section-title">📺 Professional Catalogs (Includes Indonesian Horror Vault)</div>
+                    <div class="section-title">📺 Mastermind Catalogs (Includes Horror Vault)</div>
                     <div class="grid-2">
                         <label><input type="checkbox" id="cat_indo_horror_trending"> 👻 Indonesian Horror: Trending</label>
                         <label><input type="checkbox" id="cat_indo_horror_latest"> 👻 Indonesian Horror: Latest</label>
@@ -566,13 +580,13 @@ function renderConfigPage(res, currentConfig) {
                     </select>
                 </div>
 
-                <a id="installBtn" class="btn" href="#">Install AuraFlix Independent</a>
+                <a id="installBtn" class="btn" href="#">Install Private API</a>
             </div>
 
             <script>
                 const initialConfig = ` + configJson + `;
                 
-                ['bitsearch', 'nyaa', 'yts', 'mediafusion'].forEach(id => {
+                ['torrentcsv', 'bitsearch', 'nyaa', 'yts'].forEach(id => {
                     if(document.getElementById('prov_' + id)) {
                         document.getElementById('prov_' + id).checked = initialConfig.providers[id] !== false;
                     }
@@ -600,7 +614,7 @@ function renderConfigPage(res, currentConfig) {
                     });
 
                     let provObj = {};
-                    ['bitsearch', 'nyaa', 'yts', 'mediafusion'].forEach(id => {
+                    ['torrentcsv', 'bitsearch', 'nyaa', 'yts'].forEach(id => {
                         if(document.getElementById('prov_' + id)) provObj[id] = document.getElementById('prov_' + id).checked;
                     });
 

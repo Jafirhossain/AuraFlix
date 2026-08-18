@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-independent-engine",
-  "version": "30.0.0",
-  "description": "100% Independent Scraper Engine. Indonesian Horror Vault, Global Horror, Multi-Language Flags & Direct P2P Scrapers.",
+  "name": "auraflix-mastermind-api",
+  "version": "31.0.0",
+  "description": "100% Independent Self-Hosted Scraper API with Anti-Block Routing.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
