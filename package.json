@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-ultra-vip-fixed",
-  "version": "16.1.0",
-  "description": "ULTIMATE FIX: No Blank Pages, Multi-Engine (Torrentio+MediaFusion), Direct Mega/Pixeldrain Links.",
+  "name": "auraflix-100-percent-free",
+  "version": "22.0.0",
+  "description": "100% Free & Unlimited Scraper Engine (Torrentio + MediaFusion + BitSearch). Zero Paid APIs. Highly Stable.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -10,5 +10,8 @@
     "axios": "^1.7.0",
     "express": "^4.19.2",
     "stremio-addon-sdk": "^1.6.10"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

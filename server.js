@@ -3,6 +3,11 @@ const axios = require("axios");
 
 const TMDB_API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
 
+const SCRAPER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*"
+};
+
 function getDefaultConfig() {
     return {
         catalogs: {
@@ -10,9 +15,11 @@ function getDefaultConfig() {
             south_trending: true, south_new_releases: true, hindi_webseries: true,
             netflix_prime: true, hotstar_sonyliv: true, hollywood_hindi: true
         },
+        providers: {
+            torrentio: true, bitsearch: true, nyaa: true, yts: true,
+            mediafusion: true, hdhub: true, desiflix: true, tamilmv: true, tamilblasters: true
+        },
         langPriority: "hindi", 
-        debridProvider: "none",
-        debridToken: "",
         excludeResolutions: []
     };
 }
@@ -21,7 +28,9 @@ function parseConfig(configStr) {
     if (!configStr) return getDefaultConfig();
     try {
         const decoded = Buffer.from(configStr, 'base64').toString('utf8');
-        return { ...getDefaultConfig(), ...JSON.parse(decoded) };
+        let parsed = JSON.parse(decoded);
+        if (!parsed.providers) parsed.providers = getDefaultConfig().providers;
+        return { ...getDefaultConfig(), ...parsed };
     } catch (e) {
         return getDefaultConfig();
     }
@@ -42,10 +51,10 @@ function getManifest(config) {
     ];
 
     return {
-        id: "org.auraflix.ultravip",
-        version: "16.1.0",
-        name: "AuraFlix Ultra VIP 🇮🇳",
-        description: "ULTIMATE FIX: Syntax Error Fixed! Multi-Engine Scraper (Torrentio + KnightCrawler + MediaFusion) for Mega/Pixeldrain Direct Links.",
+        id: "org.auraflix.free",
+        version: "22.0.0",
+        name: "AuraFlix 100% Free 🇮🇳",
+        description: "Ultimate Stable Engine: MediaFusion Direct Links + Torrentio P2P + Scrapers. Priority to Hindi & 4K. Zero Paid APIs.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
         resources: [
@@ -77,7 +86,7 @@ async function fetchAnime(catalogId, search = null, genre = null, skip = 0) {
                 name: attr.canonicalTitle || attr.titles?.en || "Anime",
                 poster: attr.posterImage?.large || attr.posterImage?.original || "https://via.placeholder.com/500x750?text=No+Poster",
                 background: attr.coverImage?.large || attr.coverImage?.original,
-                description: "⭐ Score: " + (attr.averageRating || "N/A") + "% | 📌 Episodes: " + (attr.episodeCount || 'Ongoing') + "\n\n" + attr.synopsis
+                description: "⭐ Score: " + (attr.averageRating || "N/A") + "% | 📌 Episodes: " + (attr.episodeCount || 'Ongoing') + "\n\n" + (attr.synopsis || "")
             };
         });
     } catch (e) { return []; }
@@ -114,7 +123,7 @@ async function fetchOTTContent(catalogId, genre = null, search = null, skip = 0)
             name: m.title || m.name,
             poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
             background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined,
-            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 " + (m.release_date || m.first_air_date || "TBA") + "\n\n" + m.overview
+            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 " + (m.release_date || m.first_air_date || "TBA") + "\n\n" + (m.overview || "")
         }));
     } catch (e) { return []; }
 }
@@ -128,10 +137,7 @@ app.get("/:config/configure", (req, res) => renderConfigPage(res, parseConfig(re
 app.get("/manifest.json", (req, res) => res.json(getManifest(getDefaultConfig())));
 app.get("/:config/manifest.json", (req, res) => res.json(getManifest(parseConfig(req.params.config))));
 
-app.get("/catalog/:type/:id.json", async (req, res) => handleCatalog(req, res, null));
-app.get("/:config/catalog/:type/:id.json", async (req, res) => handleCatalog(req, res, req.params.config));
-
-async function handleCatalog(req, res, configStr) {
+app.get("/catalog/:type/:id.json", async (req, res) => {
     const { type, id } = req.params;
     const { search, genre, skip } = req.query;
     let metas = [];
@@ -139,11 +145,17 @@ async function handleCatalog(req, res, configStr) {
     else metas = await fetchOTTContent(id, genre, search, parseInt(skip) || 0);
     metas.forEach(m => m.type = type); 
     return res.json({ metas });
-}
+});
 
-// Meta is ONLY for Kitsu now.
-app.get("/meta/:type/:id.json", async (req, res) => handleMeta(req, res));
-app.get("/:config/meta/:type/:id.json", async (req, res) => handleMeta(req, res));
+app.get("/:config/catalog/:type/:id.json", async (req, res) => {
+    const { type, id } = req.params;
+    const { search, genre, skip } = req.query;
+    let metas = [];
+    if (id.startsWith("anime")) metas = await fetchAnime(id, search, genre, parseInt(skip) || 0);
+    else metas = await fetchOTTContent(id, genre, search, parseInt(skip) || 0);
+    metas.forEach(m => m.type = type); 
+    return res.json({ metas });
+});
 
 async function handleMeta(req, res) {
     const { id, type } = req.params;
@@ -176,11 +188,8 @@ async function handleMeta(req, res) {
     return res.status(404).send("Not Found"); 
 }
 
-// ----------------------------------------------------
-// MULTI-ENGINE SCRAPER
-// ----------------------------------------------------
-app.get("/stream/:type/:id.json", async (req, res) => handleStream(req, res, null));
-app.get("/:config/stream/:type/:id.json", async (req, res) => handleStream(req, res, req.params.config));
+app.get("/meta/:type/:id.json", handleMeta);
+app.get("/:config/meta/:type/:id.json", handleMeta);
 
 async function handleStream(req, res, configStr) {
     const config = parseConfig(configStr);
@@ -191,12 +200,11 @@ async function handleStream(req, res, configStr) {
     let episodeNum = "";
     let seasonNum = "";
     
-    // Resolve IDs
     try {
         if (isAnime) {
             const parts = targetId.split(":");
             episodeNum = parts[2] || "";
-            const kRes = await axios.get(`https://kitsu.io/api/edge/anime/${parts[1]}`, { timeout: 4000 });
+            const kRes = await axios.get(`https://kitsu.io/api/edge/anime/${parts[1]}`, { timeout: 4500 });
             mediaTitle = kRes.data.data.attributes.canonicalTitle || kRes.data.data.attributes.titles.en;
         } else if (targetId.startsWith("tmdb:")) {
             const parts = targetId.split(":");
@@ -205,71 +213,90 @@ async function handleStream(req, res, configStr) {
             episodeNum = parts[3];
             const isTv = type === "series";
             
-            const tRes = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 4000 });
+            const tRes = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 4500 });
             mediaTitle = tRes.data.title || tRes.data.name;
             const imdbId = tRes.data.external_ids?.imdb_id || tRes.data.imdb_id;
             
             if (imdbId) targetId = (seasonNum && episodeNum) ? `${imdbId}:${seasonNum}:${episodeNum}` : imdbId;
         } else if (targetId.startsWith("tt")) {
             const parts = targetId.split(":");
+            targetId = id; 
             seasonNum = parts[1];
             episodeNum = parts[2];
         }
-    } catch (e) {}
+    } catch (e) {
+        console.log("ID Resolution info:", e.message);
+    }
 
     let allStreams = [];
     const torrentioType = isAnime ? "anime" : type;
+    const providersList = [];
 
-    // Build Debrid URLs
-    const buildProviderUrl = (baseUrl) => {
-        let u = baseUrl;
-        if (config.debridProvider && config.debridProvider !== "none" && config.debridToken) {
-            u += `/${config.debridProvider}=${config.debridToken}`;
-        }
-        return `${u}/stream/${torrentioType}/${targetId}.json`;
-    };
+    if (config.providers.torrentio) {
+        let tUrl = "https://torrentio.strem.fun";
+        let tConfig = "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex,nekobt,rutor,rutracker,comando,bludv,torrent9,mejortorrent,wolfmax4k,cinecalidad|sort=qualitysize|language=hindi";
+        providersList.push(`${tUrl}/${tConfig}/stream/${torrentioType}/${targetId}.json`);
+    }
 
-    // Parallel Request to all 3 Major Engines!
-    const providers = [
-        "https://torrentio.strem.fun", 
-        "https://knightcrawler.elfhosted.com", 
-        "https://mediafusion.elfhosted.com"
-    ];
+    if (config.providers.mediafusion || config.providers.hdhub || config.providers.desiflix || config.providers.tamilmv || config.providers.tamilblasters) {
+        providersList.push(`https://mediafusion.elfhosted.com/stream/${torrentioType}/${targetId}.json`);
+    }
 
-    await Promise.all(providers.map(async (provider) => {
+    await Promise.allSettled(providersList.map(async (providerUrl) => {
         try {
-            let r = await axios.get(buildProviderUrl(provider), { timeout: 6500 });
-            if (r.data && r.data.streams) allStreams.push(...r.data.streams);
-        } catch(e) {}
+            let r = await axios.get(providerUrl, { timeout: 7000 }); 
+            if (r.data && r.data.streams && Array.isArray(r.data.streams)) {
+                allStreams.push(...r.data.streams);
+            }
+        } catch(e) {
+            console.log(`Provider skipped: ${providerUrl}`);
+        }
     }));
 
-    // Native Scraper Fallback
-    if (allStreams.length < 3 && mediaTitle) {
-        if (isAnime) {
-            const queries = [mediaTitle + " Hindi", mediaTitle + " " + episodeNum, mediaTitle];
-            for (let q of queries) {
-                try {
-                    let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(q)}&c=0_0&f=0`, { timeout: 4000 });
-                    const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
-                    items.forEach(item => {
-                        const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
-                        const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
-                        const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
-                        if (titleMatch && hashMatch) {
-                            allStreams.push({ title: titleMatch[1], infoHash: hashMatch[1], seeders: parseInt(seedsMatch ? seedsMatch[1] : 20) });
-                        }
-                    });
-                } catch(e) {}
-                if (allStreams.length > 5) break;
-            }
-        } else {
+    if (config.providers.bitsearch && allStreams.length < 15 && mediaTitle) {
+        let searchQuery = isAnime ? `${mediaTitle} ${episodeNum}` : (seasonNum ? `${mediaTitle} S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : mediaTitle);
+        const queries = [`${searchQuery} Hindi`, searchQuery];
+        for (let q of queries) {
             try {
-                let apiBayRes = await axios.get(`https://apibay.org/q.php?q=${encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
-                if (apiBayRes.data && apiBayRes.data[0].id !== "0") {
-                    apiBayRes.data.forEach(t => allStreams.push({ title: t.name, infoHash: t.info_hash, seeders: parseInt(t.seeders) || 5 }));
+                let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(q.trim())}&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
+                if (bitRes.data && bitRes.data.data && Array.isArray(bitRes.data.data)) {
+                    bitRes.data.data.forEach(t => {
+                        allStreams.push({ title: t.name, infoHash: t.infohash, seeders: parseInt(t.seeders) || 0, isNative: true, provider: "BitSearch" });
+                    });
                 }
             } catch(e) {}
+            if (allStreams.length > 20) break;
         }
+    }
+
+    if (config.providers.nyaa && isAnime && allStreams.length < 20 && mediaTitle) {
+        try {
+            let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(mediaTitle)}&c=0_0&f=0`, { timeout: 4000 });
+            const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
+            items.forEach(item => {
+                const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
+                const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
+                const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
+                if (titleMatch && hashMatch) {
+                    allStreams.push({ title: titleMatch[1], infoHash: hashMatch[1], seeders: parseInt(seedsMatch ? seedsMatch[1] : 20), isNative: true, provider: "Nyaa" });
+                }
+            });
+        } catch(e) {}
+    }
+
+    if (config.providers.yts && !isAnime && allStreams.length < 20 && mediaTitle && type === "movie") {
+        try {
+            let ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
+            if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
+                ytsRes.data.data.movies.forEach(m => {
+                    if(m.torrents && Array.isArray(m.torrents)) {
+                        m.torrents.forEach(t => {
+                            allStreams.push({ title: `${m.title} ${t.quality} ${t.type}`, infoHash: t.hash, seeders: t.seeds || 15, isNative: true, provider: "YTS" });
+                        });
+                    }
+                });
+            }
+        } catch(e) {}
     }
 
     let processedStreams = [];
@@ -277,16 +304,21 @@ async function handleStream(req, res, configStr) {
     const excludes = config.excludeResolutions || [];
 
     allStreams.forEach(s => {
-        if (!s) return;
+        if (!s || typeof s !== 'object') return; 
         
         let rawTitle = (s.title || "").toLowerCase();
         let rawName = (s.name || "").toLowerCase();
         let fullText = rawTitle + " " + rawName + " " + (s.description || "").toLowerCase();
 
+        if (fullText.includes("hdhub") && !config.providers.hdhub) return;
+        if (fullText.includes("desiflix") && !config.providers.desiflix) return;
+        if (fullText.includes("tamilmv") && !config.providers.tamilmv) return;
+        if (fullText.includes("tamilblasters") && !config.providers.tamilblasters) return;
+        if (fullText.includes("mediafusion") && !fullText.includes("hdhub") && !fullText.includes("desiflix") && !fullText.includes("tamilmv") && !fullText.includes("tamilblasters") && !config.providers.mediafusion) return;
+
         let seedMatch = rawTitle.match(/👤\s*(\d+)/) || rawTitle.match(/seeds:\s*(\d+)/i);
         let seeders = s.seeders || (seedMatch ? parseInt(seedMatch[1]) : (s.url ? 999 : 5)); 
         
-        // Detect Mega/Pixeldrain from MediaFusion
         let isDirect = Boolean(s.url) || fullText.includes("pixeldrain") || fullText.includes("mega") || fullText.includes("direct");
 
         const uniqueKey = s.infoHash || s.url || fullText;
@@ -330,24 +362,26 @@ async function handleStream(req, res, configStr) {
         if (config.langPriority === "hindi" && isHindi) langRank = 50;
 
         let providerTag = "🚀 P2P STREAM";
-        if (fullText.includes("mediafusion") || rawName.includes("mediafusion")) providerTag = "🔥 MEDIAFUSION";
-        if (fullText.includes("knightcrawler") || rawName.includes("knightcrawler")) providerTag = "🕷️ KNIGHTCRAWLER";
+        if (fullText.includes("mediafusion") || rawName.includes("mediafusion") || fullText.includes("hdhub") || fullText.includes("desiflix") || fullText.includes("tamilmv") || fullText.includes("tamilblasters")) providerTag = "🔥 MEDIAFUSION";
+        if (s.isNative) providerTag = `⚡ ${s.provider.toUpperCase()} (Scraper)`;
         
         let modeTag = isDirect ? "⚡ DIRECT LINK" : providerTag;
         if (fullText.includes("pixeldrain")) modeTag = "⚡ PIXELDRAIN DIRECT";
         if (fullText.includes("mega")) modeTag = "⚡ MEGA DIRECT";
+        if (fullText.includes("hdhub")) modeTag = "⚡ HDHUB DIRECT";
+        if (fullText.includes("desiflix")) modeTag = "⚡ DESIFLIX DIRECT";
+        if (fullText.includes("tamilmv")) modeTag = "⚡ TAMILMV DIRECT";
+        if (fullText.includes("tamilblasters")) modeTag = "⚡ TAMILBLASTERS DIRECT";
 
         s.langRank = langRank;
         s.qRank = qRank;
         s.seeders = seeders;
 
-        // FIXED THE SYNTAX ERROR CAUSING DEPLOYMENT FAILURE: 
-        // using regex /\\r?\\n/ instead of hardcoded line breaks
-        let cleanTitle = s.title ? s.title.split(/\r?\n/)[0].replace(/\b(Torrentio|Debrid|MediaFusion|KnightCrawler)\b/ig, 'AuraFlix') : 'Play Now';
+        let rawTitleStr = String(s.title || "Play Now");
+        let cleanTitle = rawTitleStr.split(/\r?\n/)[0].replace(/\b(Torrentio|Debrid|MediaFusion)\b/ig, 'AuraFlix');
 
-        // using safe string concatenation
-        s.name = "🎬 AuraFlix VIP\n" + langBadge;
-        s.title = quality + " • " + modeTag + "\n" + cleanTitle + "\n👤 " + seeders + " Seeders";
+        s.name = `🎬 AuraFlix VIP\n${langBadge}`;
+        s.title = `${quality} • ${modeTag}\n${cleanTitle}\n👤 ${seeders} Seeders`;
 
         processedStreams.push(s);
     });
@@ -363,6 +397,9 @@ async function handleStream(req, res, configStr) {
     return res.json({ streams: processedStreams.slice(0, parseInt(config.maxStreams) || 50) });
 }
 
+app.get("/stream/:type/:id.json", async (req, res) => handleStream(req, res, null));
+app.get("/:config/stream/:type/:id.json", async (req, res) => handleStream(req, res, req.params.config));
+
 function renderConfigPage(res, currentConfig) {
     const configJson = JSON.stringify(currentConfig);
     const html = `
@@ -371,7 +408,7 @@ function renderConfigPage(res, currentConfig) {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>AuraFlix Advanced Settings</title>
+            <title>AuraFlix Free Advanced Settings</title>
             <style>
                 body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
                 .container { max-width: 800px; margin: 0 auto; background: #111827; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #1f2937; }
@@ -383,12 +420,14 @@ function renderConfigPage(res, currentConfig) {
                 .section-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #f8fafc; display: flex; align-items: center; }
                 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
                 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-                label { font-size: 14px; cursor: pointer; display: flex; align-items: center; color: #cbd5e1; }
+                .provider-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                .provider-box { background: #0f172a; padding: 15px; border-radius: 10px; border: 1px solid #334155; }
+                .provider-box h3 { margin-top: 0; font-size: 15px; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 12px; }
+                @media (max-width: 600px) { .provider-split { grid-template-columns: 1fr; } }
+                label { font-size: 14px; cursor: pointer; display: flex; align-items: center; color: #cbd5e1; margin-bottom: 8px; }
                 input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; accent-color: #f43f5e; cursor: pointer; }
                 select, input[type="text"] { width: 100%; padding: 12px; background: #0f172a; color: #f8fafc; border: 1px solid #334155; border-radius: 8px; margin-top: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border 0.2s; }
                 select:focus, input[type="text"]:focus { border-color: #f43f5e; }
-                .debrid-box { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px dashed #334155; }
-                .debrid-hint { font-size: 12px; color: #64748b; margin-top: 5px; }
                 .btn { display: block; width: 100%; background: #f43f5e; color: white; padding: 16px; text-align: center; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; margin-top: 30px; transition: background 0.3s; border: none; cursor: pointer; }
                 .btn:hover { background: #e11d48; }
             </style>
@@ -397,10 +436,31 @@ function renderConfigPage(res, currentConfig) {
             <div class="container">
                 <div class="header">
                     <img src="https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png" alt="AuraFlix Logo" class="logo" onerror="this.style.display='none'">
-                    <h1>AuraFlix Ultra VIP</h1>
-                    <p class="desc">Integrated with MediaFusion & Torrentio for Direct Links (Pixeldrain/Mega) & P2P. Perfect Meta Fixed.</p>
+                    <h1>AuraFlix 100% Free</h1>
+                    <p class="desc">No Paid APIs. Pure Free Direct Web Streams & P2P Torrents.</p>
                 </div>
                 
+                <div class="section">
+                    <div class="section-title">🔍 Select Streaming Providers (100% Free)</div>
+                    <div class="provider-split">
+                        <div class="provider-box">
+                            <h3 style="color:#38bdf8;">🚀 Torrent Providers (P2P)</h3>
+                            <label><input type="checkbox" id="prov_torrentio"> Torrentio (1337x, PirateBay)</label>
+                            <label><input type="checkbox" id="prov_bitsearch"> BitSearch Engine (Backup)</label>
+                            <label><input type="checkbox" id="prov_nyaa"> Nyaa.si (Anime Torrents)</label>
+                            <label><input type="checkbox" id="prov_yts"> YTS (Movies Torrents)</label>
+                        </div>
+                        <div class="provider-box">
+                            <h3 style="color:#a3e635;">⚡ Direct Web Streaming</h3>
+                            <label><input type="checkbox" id="prov_hdhub"> HDHub (Direct WebRips)</label>
+                            <label><input type="checkbox" id="prov_desiflix"> DesiFlix (Indian Series)</label>
+                            <label><input type="checkbox" id="prov_tamilmv"> TamilMV (South Direct)</label>
+                            <label><input type="checkbox" id="prov_tamilblasters"> TamilBlasters (Regional)</label>
+                            <label><input type="checkbox" id="prov_mediafusion"> MediaFusion (Mega/Pixeldrain)</label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="section">
                     <div class="section-title">📺 Stremio Home Catalogues</div>
                     <div class="grid-2">
@@ -419,7 +479,6 @@ function renderConfigPage(res, currentConfig) {
 
                 <div class="section">
                     <div class="section-title">🚫 Exclude Resolutions</div>
-                    <p class="desc" style="margin-bottom:10px; font-size:12px;">Check the boxes for qualities you DO NOT want to see.</p>
                     <div class="grid-3">
                         <label><input type="checkbox" id="ex_4k" value="4k"> 4K / 2160p</label>
                         <label><input type="checkbox" id="ex_1080p" value="1080p"> 1080p</label>
@@ -437,28 +496,18 @@ function renderConfigPage(res, currentConfig) {
                     </select>
                 </div>
 
-                <div class="section">
-                    <div class="section-title">🚀 Debrid Provider (Optional)</div>
-                    <select id="debridProvider" onchange="toggleDebridInput()">
-                        <option value="none">None (Free Direct/Mega & P2P)</option>
-                        <option value="realdebrid">Real-Debrid</option>
-                        <option value="alldebrid">AllDebrid</option>
-                        <option value="premiumize">Premiumize</option>
-                    </select>
-                    
-                    <div class="debrid-box" id="debridInputBox" style="display:none;">
-                        <label style="color:#f8fafc; font-weight:bold; margin-bottom:5px; display:block;">Debrid API Key:</label>
-                        <input type="text" id="debridToken" placeholder="Enter your API Token here...">
-                        <p class="debrid-hint">Your token will be securely encoded in your unique Addon URL. It is never stored on our servers.</p>
-                    </div>
-                </div>
-
                 <a id="installBtn" class="btn" href="#">Install Addon</a>
             </div>
 
             <script>
                 const initialConfig = ` + configJson + `;
                 
+                ['torrentio', 'bitsearch', 'nyaa', 'yts', 'mediafusion', 'hdhub', 'desiflix', 'tamilmv', 'tamilblasters'].forEach(id => {
+                    if(document.getElementById('prov_' + id)) {
+                        document.getElementById('prov_' + id).checked = initialConfig.providers[id] !== false;
+                    }
+                });
+
                 ['anime_airing', 'anime_trending', 'anime_movies', 'anime_popular', 'south_trending', 'south_new_releases', 'hindi_webseries', 'netflix_prime', 'hotstar_sonyliv', 'hollywood_hindi'].forEach(id => {
                     if(document.getElementById('cat_' + id)) {
                         document.getElementById('cat_' + id).checked = initialConfig.catalogs[id] !== false;
@@ -473,14 +522,6 @@ function renderConfigPage(res, currentConfig) {
                 if(excludes.includes('cam')) document.getElementById('ex_cam').checked = true;
 
                 document.getElementById('langPriority').value = initialConfig.langPriority || 'hindi';
-                document.getElementById('debridProvider').value = initialConfig.debridProvider || 'none';
-                document.getElementById('debridToken').value = initialConfig.debridToken || '';
-
-                function toggleDebridInput() {
-                    const val = document.getElementById('debridProvider').value;
-                    document.getElementById('debridInputBox').style.display = val === 'none' ? 'none' : 'block';
-                }
-                toggleDebridInput();
 
                 function updateUrl() {
                     let catObj = {};
@@ -488,18 +529,24 @@ function renderConfigPage(res, currentConfig) {
                         if(document.getElementById('cat_' + id)) catObj[id] = document.getElementById('cat_' + id).checked;
                     });
 
+                    let provObj = {};
+                    ['torrentio', 'bitsearch', 'nyaa', 'yts', 'mediafusion', 'hdhub', 'desiflix', 'tamilmv', 'tamilblasters'].forEach(id => {
+                        if(document.getElementById('prov_' + id)) provObj[id] = document.getElementById('prov_' + id).checked;
+                    });
+
                     let exc = [];
                     if(document.getElementById('ex_4k').checked) exc.push('4k');
                     if(document.getElementById('ex_1080p').checked) exc.push('1080p');
                     if(document.getElementById('ex_720p').checked) exc.push('720p');
                     if(document.getElementById('ex_480p').checked) exc.push('480p');
-                    if(document.getElementById('ex_cam').checked) exc.push('cam');
+                    if(document.getElementById('ex_cam').checked) exc.push('cam'); 
 
                     const config = {
                         catalogs: catObj,
+                        providers: provObj,
                         langPriority: document.getElementById('langPriority').value,
-                        debridProvider: document.getElementById('debridProvider').value,
-                        debridToken: document.getElementById('debridToken').value.trim(),
+                        debridProvider: "none",
+                        debridToken: "",
                         excludeResolutions: exc
                     };
 
@@ -508,7 +555,6 @@ function renderConfigPage(res, currentConfig) {
                 }
 
                 document.querySelectorAll('input, select').forEach(el => el.addEventListener('change', updateUrl));
-                document.getElementById('debridToken').addEventListener('input', updateUrl);
                 updateUrl();
             </script>
         </body>
