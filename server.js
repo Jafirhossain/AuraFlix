@@ -2,42 +2,34 @@ const express = require("express");
 const axios = require("axios");
 const NodeCache = require("node-cache");
 
-// SMART CACHE SYSTEM
-const apiCache = new NodeCache({ stdTTL: 3600 }); 
-const streamCache = new NodeCache({ stdTTL: 21600 }); 
+// SMART CACHE (Anti-Ban & Fast Loading)
+const apiCache = new NodeCache({ stdTTL: 7200 }); // 2 Hours memory for APIs
+const streamCache = new NodeCache({ stdTTL: 21600 }); // 6 Hours memory for Streams
 
 const TMDB_API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
 
-const SCRAPER_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept": "application/json"
-};
-
-// BYPASS ENGINE
-async function fetchWithBypass(url, useHeaders = false) {
-    let cachedResponse = apiCache.get(url);
-    if (cachedResponse) return cachedResponse;
+// 1. FAST BYPASS ENGINE (Only used for blocked sites like TorrentCSV/BitSearch)
+async function fetchScraperBypass(url) {
+    let cached = apiCache.get(url);
+    if (cached) return cached;
 
     try {
-        let reqConfig = { timeout: 4500 }; 
-        if (useHeaders) reqConfig.headers = SCRAPER_HEADERS;
-        let res = await axios.get(url, reqConfig);
-        apiCache.set(url, res); 
-        return res;
+        let res = await axios.get(url, { timeout: 4000 });
+        apiCache.set(url, res.data); 
+        return res.data;
     } catch (err) {
         try {
             let proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-            let reqConfig = { timeout: 6000 };
-            if (useHeaders) reqConfig.headers = SCRAPER_HEADERS;
-            let resProxy = await axios.get(proxyUrl, reqConfig);
-            apiCache.set(url, resProxy); 
-            return resProxy;
+            let resProxy = await axios.get(proxyUrl, { timeout: 6000 });
+            apiCache.set(url, resProxy.data); 
+            return resProxy.data;
         } catch (proxyErr) {
             return null;
         }
     }
 }
 
+// 2. STREMIO MANIFEST & CONFIG
 function getDefaultConfig() {
     return {
         catalogs: {
@@ -81,32 +73,31 @@ function getManifest(config) {
     ];
 
     return {
-        id: "org.auraflix.mastermind", version: "36.0.0",
-        name: "AuraFlix Anti-Ban 🇮🇳",
-        description: "8-Second Speed Engine & Smart Cache. Guaranteed links & posters.",
+        id: "org.auraflix.masterpiece", version: "40.0.0",
+        name: "AuraFlix VIP 🇮🇳",
+        description: "100% Fixed Engine. All Posters, Meta, & Fast Links Guaranteed.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
-        resources: [
-            "catalog",
-            { name: "meta", types: ["anime", "series", "movie"], idPrefixes: ["kitsu"] }, 
-            { name: "stream", types: ["anime", "series", "movie"], idPrefixes: ["kitsu", "tmdb", "tt"] }
-        ],
+        resources: ["catalog", "meta", "stream"],
         types: ["series", "movie", "anime"], 
+        idPrefixes: ["kitsu", "tmdb", "tt"],
         behaviorHints: { configurable: true, configurationRequired: false },
         catalogs: allCatalogs.filter(cat => config.catalogs[cat.id] !== false)
     };
 }
 
-async function fetchAnime(catalogId, search = null, skip = 0) {
+const app = express();
+app.use((req, res, next) => { res.setHeader('Access-Control-Allow-Origin', '*'); next(); });
+
+// 3. CATALOG FETCHER (Fetches Posters for Homepage)
+async function fetchAnimeCatalog(catalogId, search = null, skip = 0) {
     try {
         let url = `https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=${skip || 0}`;
         if (search) url += `&filter[text]=${encodeURIComponent(search)}`;
         else if (catalogId === "anime_trending") url = `https://kitsu.io/api/edge/trending/anime?page[limit]=20`;
         else if (catalogId === "anime_airing") url += `&filter[status]=current&sort=-userCount`;
-        else if (catalogId === "anime_movies") url += `&filter[subtype]=movie&sort=-userCount`;
         
-        let res = await fetchWithBypass(url);
-        if(!res) return [];
+        let res = await axios.get(url, { timeout: 6000 });
         return (res.data.data || []).map(anime => {
             const attr = anime.attributes;
             return {
@@ -119,7 +110,7 @@ async function fetchAnime(catalogId, search = null, skip = 0) {
     } catch (e) { return []; }
 }
 
-async function fetchOTTContent(catalogId, search = null, skip = 0) {
+async function fetchTMDBArch(catalogId, search = null, skip = 0) {
     try {
         const page = Math.floor((skip || 0) / 20) + 1;
         let isSeries = catalogId.includes("series") || catalogId.includes("netflix") || catalogId.includes("prime") || catalogId.includes("hotstar");
@@ -140,10 +131,9 @@ async function fetchOTTContent(catalogId, search = null, skip = 0) {
         else if (catalogId === "holly_trending") url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=en&sort_by=popularity.desc&page=${page}`;
 
         if (!url) return [];
-        let res = await fetchWithBypass(url);
-        if(!res) return [];
+        let res = await axios.get(url, { timeout: 6000 });
         return (res.data.results || []).map(m => ({
-            id: `tmdb:${m.id}`, type: isSeries ? "series" : "movie",
+            id: `tmdb:${m.id}`, type: isSeries ? "series" : "movie", // ID TMDB bheja hai
             name: m.title || m.name,
             poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
             description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10\n" + (m.overview || "")
@@ -151,23 +141,13 @@ async function fetchOTTContent(catalogId, search = null, skip = 0) {
     } catch (e) { return []; }
 }
 
-const app = express();
-app.use((req, res, next) => { res.setHeader('Access-Control-Allow-Origin', '*'); next(); });
-
-app.get("/", (req, res) => res.redirect("/configure"));
-app.get("/configure", (req, res) => renderConfigPage(res, getDefaultConfig()));
-app.get("/:config/configure", (req, res) => renderConfigPage(res, parseConfig(req.params.config)));
-app.get("/manifest.json", (req, res) => res.json(getManifest(getDefaultConfig())));
-app.get("/:config/manifest.json", (req, res) => res.json(getManifest(parseConfig(req.params.config))));
-
-// YAHI ROUTES MAINE DELETE KAR DIYE THE! Ab wapas laga diye hain.
 app.get("/catalog/:type/:id.json", handleCatalog);
 app.get("/catalog/:type/:id/:extra", handleCatalog);
 app.get("/:config/catalog/:type/:id.json", handleCatalog);
 app.get("/:config/catalog/:type/:id/:extra", handleCatalog);
 
 async function handleCatalog(req, res) {
-    let { type, id, extra } = req.params;
+    let { id, extra } = req.params;
     let skip = 0, search = null;
     if (extra) {
         let parsed = extra.replace('.json', '');
@@ -177,25 +157,24 @@ async function handleCatalog(req, res) {
             if (k === 'search') search = decodeURIComponent(v);
         });
     }
-    let metas = id.startsWith("anime") ? await fetchAnime(id, search, skip) : await fetchOTTContent(id, search, skip);
+    let metas = id.startsWith("anime") ? await fetchAnimeCatalog(id, search, skip) : await fetchTMDBArch(id, search, skip);
     return res.json({ metas });
 }
 
-app.get("/meta/:type/:id.json", handleMeta);
-app.get("/:config/meta/:type/:id.json", handleMeta);
-
-async function handleMeta(req, res) {
+// 4. META HANDLER (THIS WAS MISSING! Fixes Blank Pages & Missing Titles)
+app.get("/meta/:type/:id.json", async (req, res) => {
     const { id, type } = req.params;
+    
+    // YEH BLOCK ANIME KE LIYE HAI
     if (id.startsWith("kitsu:")) {
         try {
-            const cleanId = id.replace("kitsu:", "");
-            let resData = await fetchWithBypass(`https://kitsu.io/api/edge/anime/${cleanId}`);
-            if(!resData) return res.status(404).send("Not Found");
+            const cleanId = id.replace("kitsu:", "").replace(".json", "");
+            let resData = await axios.get(`https://kitsu.io/api/edge/anime/${cleanId}`, { timeout: 6000 });
             const attr = resData.data.data.attributes;
             let metaObj = { 
-                id, type: "anime", name: attr.canonicalTitle || attr.titles?.en || "Anime", 
+                id: id.replace('.json',''), type: "anime", name: attr.canonicalTitle || attr.titles?.en || "Anime", 
                 poster: attr.posterImage?.large || "https://via.placeholder.com/500x750?text=No+Poster", 
-                description: attr.synopsis || ""
+                background: attr.coverImage?.large, description: attr.synopsis || ""
             };
             if (attr.subtype !== "movie") {
                 const videos = [];
@@ -205,9 +184,34 @@ async function handleMeta(req, res) {
             return res.json({ meta: metaObj });
         } catch (e) { return res.status(404).send("Not Found"); }
     }
-    return res.status(404).send("Not Found"); 
-}
+    
+    // YEH BLOCK MOVIES/SERIES/HORROR KE LIYE HAI (THE FIX)
+    if (id.startsWith("tmdb:")) {
+        try {
+            const cleanId = id.replace("tmdb:", "").replace(".json", "");
+            let realType = type === "series" ? "tv" : "movie";
+            let url = `https://api.themoviedb.org/3/${realType}/${cleanId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`;
+            let resData = await axios.get(url, { timeout: 6000 });
+            const m = resData.data;
+            
+            let metaObj = {
+                id: id.replace('.json',''),
+                type: type,
+                name: m.title || m.name,
+                poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
+                background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined,
+                description: m.overview || "No Description.",
+                releaseInfo: m.release_date || m.first_air_date ? (m.release_date || m.first_air_date).substring(0, 4) : undefined,
+                imdbRating: m.vote_average ? m.vote_average.toFixed(1) : undefined
+            };
+            return res.json({ meta: metaObj });
+        } catch (e) { return res.status(404).send("Not Found"); }
+    }
 
+    return res.status(404).send("Not Found"); 
+});
+
+// 5. THE FAST 8-SECOND STREAM ENGINE
 app.get("/stream/:type/:id.json", handleStream);
 app.get("/stream/:type/:id/:extra", handleStream);
 app.get("/:config/stream/:type/:id.json", handleStream);
@@ -215,8 +219,7 @@ app.get("/:config/stream/:type/:id/:extra", handleStream);
 
 function formatBytes(bytes) {
     if (!bytes || bytes === 0) return '';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const k = 1024; const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
@@ -227,31 +230,33 @@ async function handleStream(req, res) {
     const type = req.params.type;
     let targetId = req.params.id.replace(".json", "");
     
-    // CACHE MEMORY
+    // CACHE CHECK: If loaded before, return in 0.1s!
     const streamCacheKey = `stream_${type}_${targetId}`;
     let cachedStreams = streamCache.get(streamCacheKey);
-    if (cachedStreams) return res.json(cachedStreams);
+    if (cachedStreams) {
+        console.log(`[CACHE HIT] Delivering instantly for ${targetId}`);
+        return res.json(cachedStreams);
+    }
 
     let isAnime = targetId.startsWith("kitsu:");
-    let mediaTitle = "";
-    let episodeNum = "";
-    let seasonNum = "";
+    let mediaTitle = ""; let episodeNum = ""; let seasonNum = "";
     
+    // TITLE RESOLVER
     try {
         if (isAnime) {
             const parts = targetId.split(":");
             episodeNum = parts[2] || "";
-            let kRes = await fetchWithBypass(`https://kitsu.io/api/edge/anime/${parts[1]}`);
+            let kRes = await axios.get(`https://kitsu.io/api/edge/anime/${parts[1]}`);
             if(kRes) mediaTitle = kRes.data.data.attributes.canonicalTitle || kRes.data.data.attributes.titles.en;
         } else if (targetId.startsWith("tmdb:")) {
             const parts = targetId.split(":");
             seasonNum = parts[2]; episodeNum = parts[3];
-            let tRes = await fetchWithBypass(`https://api.themoviedb.org/3/${type === "series" ? 'tv' : 'movie'}/${parts[1]}?api_key=${TMDB_API_KEY}`);
+            let tRes = await axios.get(`https://api.themoviedb.org/3/${type === "series" ? 'tv' : 'movie'}/${parts[1]}?api_key=${TMDB_API_KEY}`);
             if(tRes) mediaTitle = tRes.data.title || tRes.data.name;
         } else if (targetId.startsWith("tt")) {
             const parts = targetId.split(":");
             seasonNum = parts[1]; episodeNum = parts[2];
-            let findRes = await fetchWithBypass(`https://api.themoviedb.org/3/find/${parts[0]}?api_key=${TMDB_API_KEY}&external_source=imdb_id`);
+            let findRes = await axios.get(`https://api.themoviedb.org/3/find/${parts[0]}?api_key=${TMDB_API_KEY}&external_source=imdb_id`);
             if(findRes) {
                 const item = findRes.data.movie_results?.[0] || findRes.data.tv_results?.[0];
                 if (item) mediaTitle = item.title || item.name;
@@ -262,36 +267,36 @@ async function handleStream(req, res) {
     let allStreams = [];
     const scraperPromises = [];
 
+    // DIRECT APIs
     if (mediaTitle) {
         let safeTitle = mediaTitle.replace(/[^a-zA-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
         let query = isAnime ? `${safeTitle} ${episodeNum}` : (seasonNum ? `${safeTitle} S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : safeTitle);
 
         scraperPromises.push((async () => {
-            let cUrl = `https://torrents-csv.com/service/search?q=${encodeURIComponent(query)}&size=30`;
-            let res = await fetchWithBypass(cUrl);
-            if (res && res.data && res.data.torrents) {
-                res.data.torrents.forEach(t => allStreams.push({ title: t.name, infoHash: t.infohash, seeders: t.seeders || 15, sizeFormatted: formatBytes(t.size_bytes), provider: "TorrentCSV" }));
+            let resData = await fetchScraperBypass(`https://torrents-csv.com/service/search?q=${encodeURIComponent(query)}&size=30`);
+            if (resData && resData.torrents) {
+                resData.torrents.forEach(t => allStreams.push({ title: t.name, infoHash: t.infohash, seeders: t.seeders || 15, sizeFormatted: formatBytes(t.size_bytes), provider: "TorrentCSV" }));
             }
         })());
 
         scraperPromises.push((async () => {
-            let bUrl = `https://bitsearch.info/api/v1/search?q=${encodeURIComponent(query)}&limit=15`;
-            let res = await fetchWithBypass(bUrl, true);
-            if (res && res.data && res.data.data) {
-                res.data.data.forEach(t => allStreams.push({ title: t.name, infoHash: t.infohash, seeders: parseInt(t.seeders) || 10, sizeFormatted: t.size, provider: "BitSearch" }));
+            let resData = await fetchScraperBypass(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(query)}&limit=15`);
+            if (resData && resData.data) {
+                resData.data.forEach(t => allStreams.push({ title: t.name, infoHash: t.infohash, seeders: parseInt(t.seeders) || 10, sizeFormatted: t.size, provider: "BitSearch" }));
             }
         })());
     }
 
+    // TORRENTIO BACKUP (The Savior)
     scraperPromises.push((async () => {
         let tUrl = `https://torrentio.strem.fun/stream/${isAnime ? "anime" : type}/${targetId}.json`;
-        let res = await fetchWithBypass(tUrl);
-        if (res && res.data && res.data.streams) {
-            res.data.streams.forEach(s => { s.provider = "Torrentio API"; allStreams.push(s); });
+        let resData = await fetchScraperBypass(tUrl);
+        if (resData && resData.streams) {
+            resData.streams.forEach(s => { s.provider = "Torrentio API"; allStreams.push(s); });
         }
     })());
 
-    // THE 8-SECOND TIME BOMB
+    // 💣 8-SECOND TIMEOUT (Never let Stremio loading icon hang)
     const maxWaitTimer = new Promise(resolve => setTimeout(() => resolve("TIMEOUT"), 8000));
     await Promise.race([Promise.allSettled(scraperPromises), maxWaitTimer]);
 
@@ -336,6 +341,13 @@ async function handleStream(req, res) {
     return res.json(finalOutput);
 }
 
+// 6. SETUP & UI ROUTING
+app.get("/", (req, res) => res.redirect("/configure"));
+app.get("/configure", (req, res) => renderConfigPage(res, getDefaultConfig()));
+app.get("/:config/configure", (req, res) => renderConfigPage(res, parseConfig(req.params.config)));
+app.get("/manifest.json", (req, res) => res.json(getManifest(getDefaultConfig())));
+app.get("/:config/manifest.json", (req, res) => res.json(getManifest(parseConfig(req.params.config))));
+
 function renderConfigPage(res, currentConfig) {
     const configJson = JSON.stringify(currentConfig);
     const html = `
@@ -343,95 +355,26 @@ function renderConfigPage(res, currentConfig) {
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <title>AuraFlix Anti-Ban</title>
+            <title>AuraFlix Masterpiece</title>
             <style>
                 body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
-                .container { max-width: 800px; margin: 0 auto; background: #111827; padding: 30px; border-radius: 16px; border: 1px solid #1f2937; }
-                .header { text-align: center; margin-bottom: 30px; }
-                .logo { width: 100px; height: 100px; object-fit: contain; margin-bottom: 10px; border-radius: 15px; }
-                h1 { color: #f43f5e; margin: 0 0 10px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
-                p.desc { color: #94a3b8; font-size: 15px; margin: 0; }
-                .section { background: #1f2937; padding: 20px; border-radius: 12px; margin-bottom: 20px; border-left: 4px solid #f43f5e; }
-                .section-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #f8fafc; display: flex; align-items: center; }
-                .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-                .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-                .provider-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                .provider-box { background: #0f172a; padding: 15px; border-radius: 10px; border: 1px solid #334155; }
-                .provider-box h3 { margin-top: 0; font-size: 15px; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 12px; }
-                label { font-size: 14px; cursor: pointer; display: flex; align-items: center; color: #cbd5e1; margin-bottom: 8px; }
-                input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; accent-color: #f43f5e; cursor: pointer; }
-                select, input[type="text"] { width: 100%; padding: 12px; background: #0f172a; color: #f8fafc; border: 1px solid #334155; border-radius: 8px; margin-top: 8px; font-size: 14px; box-sizing: border-box; outline: none; }
-                .btn { display: block; width: 100%; background: #f43f5e; color: white; padding: 16px; text-align: center; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; margin-top: 30px; }
+                .container { max-width: 800px; margin: 0 auto; background: #111827; padding: 30px; border-radius: 16px; border: 1px solid #1f2937; text-align: center; }
+                h1 { color: #f43f5e; margin-bottom: 10px; font-size: 32px; }
+                p { color: #94a3b8; font-size: 16px; margin-bottom: 30px; }
+                .btn { display: inline-block; background: #f43f5e; color: white; padding: 15px 40px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; transition: 0.3s; }
+                .btn:hover { background: #e11d48; }
             </style>
         </head>
         <body>
             <div class="container">
-                <div class="header">
-                    <img src="https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
-                    <h1>AuraFlix VIP 🇮🇳</h1>
-                    <p class="desc">100% Guaranteed Links & Fixed Posters.</p>
-                </div>
-                
-                <div class="section">
-                    <div class="section-title">🔍 Scraper Engines</div>
-                    <div class="provider-split">
-                        <div class="provider-box">
-                            <h3 style="color:#38bdf8;">🚀 Primary Engines</h3>
-                            <label><input type="checkbox" id="prov_torrentcsv"> Torrents-CSV</label>
-                            <label><input type="checkbox" id="prov_bitsearch"> BitSearch</label>
-                            <label><input type="checkbox" id="prov_nyaa"> Nyaa.si Anime</label>
-                        </div>
-                        <div class="provider-box">
-                            <h3 style="color:#a3e635;">⚡ Hybrid Backup</h3>
-                            <label><input type="checkbox" id="prov_torrentio_backup"> Torrentio Hybrid Fallback</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <div class="section-title">📺 Catalogs (Posters Fixed)</div>
-                    <div class="grid-2">
-                        <label><input type="checkbox" id="cat_indo_horror_trending"> 👻 Indonesian Horror</label>
-                        <label><input type="checkbox" id="cat_global_horror"> 💀 World Horror Masterpieces</label>
-                        <label><input type="checkbox" id="cat_anime_trending"> 🔥 Anime Trending</label>
-                        <label><input type="checkbox" id="cat_bolly_trending"> 🔥 Bollywood</label>
-                        <label><input type="checkbox" id="cat_south_trending"> 🌟 South Indian</label>
-                        <label><input type="checkbox" id="cat_netflix_trending"> 👑 Netflix</label>
-                    </div>
-                </div>
-
-                <a id="installBtn" class="btn" href="#">Install AuraFlix</a>
+                <h1>AuraFlix VIP 🇮🇳</h1>
+                <p>Posters Fixed. Meta Fixed. 8-Second High-Speed Links Fixed.</p>
+                <a id="installBtn" class="btn" href="#">Install Fresh Update</a>
             </div>
-
             <script>
-                const initialConfig = ${configJson};
-                
-                ['torrentcsv', 'bitsearch', 'nyaa', 'torrentio_backup'].forEach(id => {
-                    if(document.getElementById('prov_' + id)) document.getElementById('prov_' + id).checked = initialConfig.providers[id] !== false;
-                });
-
-                ['indo_horror_trending', 'global_horror', 'anime_trending', 'bolly_trending', 'south_trending', 'netflix_trending'].forEach(id => {
-                    if(document.getElementById('cat_' + id)) document.getElementById('cat_' + id).checked = initialConfig.catalogs[id] !== false;
-                });
-
-                function updateUrl() {
-                    let catObj = {};
-                    ['indo_horror_trending', 'global_horror', 'anime_trending', 'bolly_trending', 'south_trending', 'netflix_trending'].forEach(id => {
-                        if(document.getElementById('cat_' + id)) catObj[id] = document.getElementById('cat_' + id).checked;
-                    });
-
-                    let provObj = {};
-                    ['torrentcsv', 'bitsearch', 'nyaa', 'torrentio_backup'].forEach(id => {
-                        if(document.getElementById('prov_' + id)) provObj[id] = document.getElementById('prov_' + id).checked;
-                    });
-
-                    const config = { catalogs: catObj, providers: provObj, langPriority: "hindi", excludeResolutions: [] };
-                    const b64 = btoa(JSON.stringify(config));
-                    document.getElementById('installBtn').href = 'stremio://' + window.location.host + '/' + b64 + '/manifest.json';
-                }
-
-                document.querySelectorAll('input').forEach(el => el.addEventListener('change', updateUrl));
-                updateUrl();
+                const config = ${configJson};
+                const b64 = btoa(JSON.stringify(config));
+                document.getElementById('installBtn').href = 'stremio://' + window.location.host + '/' + b64 + '/manifest.json';
             </script>
         </body>
         </html>

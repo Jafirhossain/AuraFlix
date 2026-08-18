@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-mastermind-cache",
-  "version": "34.0.0",
-  "description": "Smart Caching Engine. 100% Free, Anti-Ban & High Speed Links.",
+  "name": "auraflix-masterpiece",
+  "version": "40.0.0",
+  "description": "The Ultimate 100% Fixed Scraper Engine with Cache, Posters, and Bypass.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
