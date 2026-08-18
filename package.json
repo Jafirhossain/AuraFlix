@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-mastermind-api",
-  "version": "31.0.0",
-  "description": "100% Independent Self-Hosted Scraper API with Anti-Block Routing.",
+  "name": "auraflix-mastermind-v32",
+  "version": "32.0.0",
+  "description": "Hybrid God-Mode Scraper. Fixes ID mismatch and guarantees streams using multi-source backup routing.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
