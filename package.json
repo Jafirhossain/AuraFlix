@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-mastermind-v32",
-  "version": "32.0.0",
-  "description": "Hybrid God-Mode Scraper. Fixes ID mismatch and guarantees streams using multi-source backup routing.",
+  "name": "auraflix-mastermind-cache",
+  "version": "34.0.0",
+  "description": "Smart Caching Engine. 100% Free, Anti-Ban & High Speed Links.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,6 +9,7 @@
   "dependencies": {
     "axios": "^1.7.0",
     "express": "^4.19.2",
+    "node-cache": "^5.1.2",
     "stremio-addon-sdk": "^1.6.10"
   },
   "engines": {
