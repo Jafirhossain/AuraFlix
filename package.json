@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-ultimate-stable",
-  "version": "23.0.0",
-  "description": "100% Free Scraper Engine. Fixed TMDB Catalog Logic, Working Links.",
+  "name": "auraflix-god-mode-fixed",
+  "version": "24.0.0",
+  "description": "100% Free Scraper Engine. Fixed TMDB Catalog Logic, Working Torrentio Links.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

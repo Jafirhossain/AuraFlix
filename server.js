@@ -52,7 +52,7 @@ function getManifest(config) {
 
     return {
         id: "org.auraflix.free",
-        version: "23.0.0",
+        version: "24.0.0",
         name: "AuraFlix 100% Free 🇮🇳",
         description: "Ultimate Stable Engine: Fixed Web Series Catalogs, Working MediaFusion & Torrentio Streams.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
@@ -156,14 +156,9 @@ app.get("/:config/catalog/:type/:id.json", async (req, res) => {
     return res.json({ metas });
 });
 
-// ----------------------------------------------------
-// CRITICAL FIX: FULL META HANDLER FOR TMDB & KITSU
-// This fixes the "Blank Page", "No Title" and "Won't Play" issue
-// ----------------------------------------------------
 async function handleMeta(req, res) {
     const { id, type } = req.params;
     
-    // Anime (Kitsu) Meta
     if (id.startsWith("kitsu:")) {
         try {
             const cleanId = id.replace("kitsu:", "");
@@ -191,7 +186,6 @@ async function handleMeta(req, res) {
         } catch (e) { return res.status(404).send("Not Found"); }
     }
     
-    // Web Series / Movies (TMDB) Meta - FIX FOR "All Hindi Web Series" etc.
     if (id.startsWith("tmdb:")) {
         try {
             const cleanId = id.replace("tmdb:", "");
@@ -211,7 +205,7 @@ async function handleMeta(req, res) {
             if (isTv && data.seasons) {
                 const videos = [];
                 for (const season of data.seasons) {
-                    if (season.season_number === 0) continue; // Skip specials
+                    if (season.season_number === 0) continue; 
                     const sRes = await axios.get(`https://api.themoviedb.org/3/tv/${cleanId}/season/${season.season_number}?api_key=${TMDB_API_KEY}`, { timeout: 5000 });
                     if (sRes.data && sRes.data.episodes) {
                         sRes.data.episodes.forEach(ep => {
@@ -231,7 +225,6 @@ async function handleMeta(req, res) {
             }
             return res.json({ meta: metaObj });
         } catch (e) { 
-            console.log("TMDB Meta Error:", e.message);
             return res.status(404).send("Not Found"); 
         }
     }
@@ -280,14 +273,12 @@ async function handleStream(req, res, configStr) {
     }
 
     let allStreams = [];
-    // Convert generic types to specific types required by scrapers
     const scraperType = isAnime ? "anime" : (seasonNum ? "series" : "movie");
     const providersList = [];
 
-    // CRITICAL FIX: Add proper query formatting for Torrentio
     if (config.providers.torrentio) {
         let tUrl = "https://torrentio.strem.fun";
-        let tConfig = "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex,nekobt,rutor,rutracker,comando,bludv,torrent9,mejortorrent,wolfmax4k,cinecalidad|sort=qualitysize|language=hindi";
+        let tConfig = "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex,nekobt,rutor,rutracker,comando,bludv,torrent9,mejortorrent,wolfmax4k,cinecalidad";
         providersList.push(`${tUrl}/${tConfig}/stream/${scraperType}/${targetId}.json`);
     }
 
@@ -299,16 +290,12 @@ async function handleStream(req, res, configStr) {
         try {
             let r = await axios.get(providerUrl, { timeout: 7000 }); 
             if (r.data && r.data.streams && Array.isArray(r.data.streams)) {
-                // Ensure streams have a valid URL or infoHash before pushing
                 const validStreams = r.data.streams.filter(s => s.url || s.infoHash);
                 allStreams.push(...validStreams);
             }
-        } catch(e) {
-            console.log(`Provider skipped: ${providerUrl} - Reason: ${e.message}`);
-        }
+        } catch(e) { }
     }));
 
-    // Fallbacks
     if (config.providers.bitsearch && allStreams.length < 5 && mediaTitle) {
         let searchQuery = isAnime ? `${mediaTitle} ${episodeNum}` : (seasonNum ? `${mediaTitle} S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : mediaTitle);
         const queries = [`${searchQuery} Hindi`, searchQuery];
@@ -323,6 +310,36 @@ async function handleStream(req, res, configStr) {
             } catch(e) {}
             if (allStreams.length > 5) break;
         }
+    }
+
+    if (config.providers.nyaa && isAnime && allStreams.length < 20 && mediaTitle) {
+        try {
+            let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(mediaTitle)}&c=0_0&f=0`, { timeout: 4000 });
+            const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
+            items.forEach(item => {
+                const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
+                const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
+                const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
+                if (titleMatch && hashMatch) {
+                    allStreams.push({ title: titleMatch[1], infoHash: hashMatch[1], seeders: parseInt(seedsMatch ? seedsMatch[1] : 20), isNative: true, provider: "Nyaa" });
+                }
+            });
+        } catch(e) {}
+    }
+
+    if (config.providers.yts && !isAnime && allStreams.length < 20 && mediaTitle && type === "movie") {
+        try {
+            let ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
+            if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
+                ytsRes.data.data.movies.forEach(m => {
+                    if(m.torrents && Array.isArray(m.torrents)) {
+                        m.torrents.forEach(t => {
+                            allStreams.push({ title: `${m.title} ${t.quality} ${t.type}`, infoHash: t.hash, seeders: t.seeds || 15, isNative: true, provider: "YTS" });
+                        });
+                    }
+                });
+            }
+        } catch(e) {}
     }
 
     let processedStreams = [];
@@ -591,3 +608,12 @@ function renderConfigPage(res, currentConfig) {
 
 const PORT = process.env.PORT || 7000;
 app.listen(PORT, () => console.log("Server running on port " + PORT));
+"""
+
+with open("package.json", "w", encoding="utf-8") as f:
+    f.write(package_json_content)
+
+with open("server.js", "w", encoding="utf-8") as f:
+    f.write(server_js_content)
+}
+}
