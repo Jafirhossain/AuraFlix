@@ -55,8 +55,8 @@ function getManifest(config) {
         version: "24.0.0",
         name: "AuraFlix 100% Free 🇮🇳",
         description: "Ultimate Stable Engine: Fixed Web Series Catalogs, Working MediaFusion & Torrentio Streams.",
-        logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
-        background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
+        logo: "[https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png](https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png)",
+        background: "[https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop](https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop)",
         resources: [
             "catalog",
             { name: "meta", types: ["anime", "series", "movie"], idPrefixes: ["kitsu", "tmdb"] },
@@ -70,8 +70,8 @@ function getManifest(config) {
 
 async function fetchAnime(catalogId, skip = 0) {
     try {
-        let url = `https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=${skip || 0}`;
-        if (catalogId === "anime_trending") url = `https://kitsu.io/api/edge/trending/anime?page[limit]=20`;
+        let url = `[https://kitsu.io/api/edge/anime?page](https://kitsu.io/api/edge/anime?page)[limit]=20&page[offset]=${skip || 0}`;
+        if (catalogId === "anime_trending") url = `[https://kitsu.io/api/edge/trending/anime?page](https://kitsu.io/api/edge/trending/anime?page)[limit]=20`;
         else if (catalogId === "anime_airing") url += `&filter[status]=current&sort=-userCount`;
         else if (catalogId === "anime_movies") url += `&filter[subtype]=movie&sort=-userCount`;
         else if (catalogId === "anime_popular") url += `&sort=popularityRank`;
@@ -83,9 +83,9 @@ async function fetchAnime(catalogId, skip = 0) {
                 id: `kitsu:${anime.id}`,
                 type: "anime",
                 name: attr.canonicalTitle || attr.titles?.en || "Anime",
-                poster: attr.posterImage?.large || attr.posterImage?.original || "https://via.placeholder.com/500x750?text=No+Poster",
+                poster: attr.posterImage?.large || attr.posterImage?.original || "[https://via.placeholder.com/500x750?text=No+Poster](https://via.placeholder.com/500x750?text=No+Poster)",
                 background: attr.coverImage?.large || attr.coverImage?.original,
-                description: "⭐ Score: " + (attr.averageRating || "N/A") + "% | 📌 Episodes: " + (attr.episodeCount || 'Ongoing') + "\n\n" + (attr.synopsis || "")
+                description: "⭐ Score: " + (attr.averageRating || "N/A") + "% | 📌 Episodes: " + (attr.episodeCount || 'Ongoing') + "\\n\\n" + (attr.synopsis || "")
             };
         });
     } catch (e) { return []; }
@@ -99,17 +99,17 @@ async function fetchOTTContent(catalogId, skip = 0) {
         const today = new Date().toISOString().split('T')[0];
 
         if (catalogId === "hindi_webseries") {
-            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=hi&sort_by=popularity.desc&page=${page}`;
+            url = `[https://api.themoviedb.org/3/discover/tv?api_key=$](https://api.themoviedb.org/3/discover/tv?api_key=$){TMDB_API_KEY}&with_original_language=hi&sort_by=popularity.desc&page=${page}`;
         } else if (catalogId === "netflix_prime") {
-            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=8|119&watch_region=IN&sort_by=popularity.desc&page=${page}`;
+            url = `[https://api.themoviedb.org/3/discover/tv?api_key=$](https://api.themoviedb.org/3/discover/tv?api_key=$){TMDB_API_KEY}&with_watch_providers=8|119&watch_region=IN&sort_by=popularity.desc&page=${page}`;
         } else if (catalogId === "hotstar_sonyliv") {
-            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=122|220|237|232&watch_region=IN&sort_by=popularity.desc&page=${page}`;
+            url = `[https://api.themoviedb.org/3/discover/tv?api_key=$](https://api.themoviedb.org/3/discover/tv?api_key=$){TMDB_API_KEY}&with_watch_providers=122|220|237|232&watch_region=IN&sort_by=popularity.desc&page=${page}`;
         } else if (catalogId === "south_trending") {
-            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=te|ta|ml|kn&sort_by=popularity.desc&page=${page}`;
+            url = `[https://api.themoviedb.org/3/discover/movie?api_key=$](https://api.themoviedb.org/3/discover/movie?api_key=$){TMDB_API_KEY}&with_original_language=te|ta|ml|kn&sort_by=popularity.desc&page=${page}`;
         } else if (catalogId === "south_new_releases") {
-            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=te|ta|ml|kn&primary_release_date.lte=${today}&sort_by=primary_release_date.desc&page=${page}`;
+            url = `[https://api.themoviedb.org/3/discover/movie?api_key=$](https://api.themoviedb.org/3/discover/movie?api_key=$){TMDB_API_KEY}&with_original_language=te|ta|ml|kn&primary_release_date.lte=${today}&sort_by=primary_release_date.desc&page=${page}`;
         } else if (catalogId === "hollywood_hindi") {
-            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=en&sort_by=popularity.desc&page=${page}`;
+            url = `[https://api.themoviedb.org/3/discover/movie?api_key=$](https://api.themoviedb.org/3/discover/movie?api_key=$){TMDB_API_KEY}&with_original_language=en&sort_by=popularity.desc&page=${page}`;
         }
 
         if (!url) return [];
@@ -119,9 +119,9 @@ async function fetchOTTContent(catalogId, skip = 0) {
             id: `tmdb:${m.id}`,
             type: isSeries ? "series" : "movie",
             name: m.title || m.name,
-            poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
-            background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined,
-            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 " + (m.release_date || m.first_air_date || "TBA") + "\n\n" + (m.overview || "")
+            poster: m.poster_path ? `[https://image.tmdb.org/t/p/w500$](https://image.tmdb.org/t/p/w500$){m.poster_path}` : "[https://via.placeholder.com/500x750?text=No+Poster](https://via.placeholder.com/500x750?text=No+Poster)",
+            background: m.backdrop_path ? `[https://image.tmdb.org/t/p/original$](https://image.tmdb.org/t/p/original$){m.backdrop_path}` : undefined,
+            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 " + (m.release_date || m.first_air_date || "TBA") + "\\n\\n" + (m.overview || "")
         }));
     } catch (e) { 
         console.error("Catalog fetch error:", e.message);
@@ -162,13 +162,13 @@ async function handleMeta(req, res) {
     if (id.startsWith("kitsu:")) {
         try {
             const cleanId = id.replace("kitsu:", "");
-            const resData = await axios.get(`https://kitsu.io/api/edge/anime/${cleanId}`, { timeout: 6000 });
+            const resData = await axios.get(`[https://kitsu.io/api/edge/anime/$](https://kitsu.io/api/edge/anime/$){cleanId}`, { timeout: 6000 });
             const attr = resData.data.data.attributes;
             const isMovie = attr.subtype === "movie";
             
             let metaObj = { 
                 id, type: "anime", name: attr.canonicalTitle || attr.titles?.en || "Anime", 
-                poster: attr.posterImage?.large || "https://via.placeholder.com/500x750?text=No+Poster", 
+                poster: attr.posterImage?.large || "[https://via.placeholder.com/500x750?text=No+Poster](https://via.placeholder.com/500x750?text=No+Poster)", 
                 background: attr.coverImage?.large, 
                 description: attr.synopsis || "No description available.",
                 imdbRating: attr.averageRating ? (attr.averageRating / 10).toFixed(1) : undefined
@@ -190,13 +190,13 @@ async function handleMeta(req, res) {
         try {
             const cleanId = id.replace("tmdb:", "");
             const isTv = type === "series";
-            const resData = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${cleanId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 6000 });
+            const resData = await axios.get(`[https://api.themoviedb.org/3/$](https://api.themoviedb.org/3/$){isTv ? 'tv' : 'movie'}/${cleanId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 6000 });
             const data = resData.data;
             
             let metaObj = {
                 id, type, name: data.title || data.name,
-                poster: data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
-                background: data.backdrop_path ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` : undefined,
+                poster: data.poster_path ? `[https://image.tmdb.org/t/p/w500$](https://image.tmdb.org/t/p/w500$){data.poster_path}` : "[https://via.placeholder.com/500x750?text=No+Poster](https://via.placeholder.com/500x750?text=No+Poster)",
+                background: data.backdrop_path ? `[https://image.tmdb.org/t/p/original$](https://image.tmdb.org/t/p/original$){data.backdrop_path}` : undefined,
                 description: data.overview || "No description available.",
                 releaseInfo: data.release_date || data.first_air_date ? (data.release_date || data.first_air_date).substring(0, 4) : undefined,
                 imdbRating: data.vote_average ? data.vote_average.toFixed(1) : undefined
@@ -206,7 +206,7 @@ async function handleMeta(req, res) {
                 const videos = [];
                 for (const season of data.seasons) {
                     if (season.season_number === 0) continue; 
-                    const sRes = await axios.get(`https://api.themoviedb.org/3/tv/${cleanId}/season/${season.season_number}?api_key=${TMDB_API_KEY}`, { timeout: 5000 });
+                    const sRes = await axios.get(`[https://api.themoviedb.org/3/tv/$](https://api.themoviedb.org/3/tv/$){cleanId}/season/${season.season_number}?api_key=${TMDB_API_KEY}`, { timeout: 5000 });
                     if (sRes.data && sRes.data.episodes) {
                         sRes.data.episodes.forEach(ep => {
                             videos.push({
@@ -216,7 +216,7 @@ async function handleMeta(req, res) {
                                 number: ep.episode_number,
                                 episode: ep.episode_number,
                                 overview: ep.overview,
-                                thumbnail: ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : undefined
+                                thumbnail: ep.still_path ? `[https://image.tmdb.org/t/p/w500$](https://image.tmdb.org/t/p/w500$){ep.still_path}` : undefined
                             });
                         });
                     }
@@ -248,7 +248,7 @@ async function handleStream(req, res, configStr) {
         if (isAnime) {
             const parts = targetId.split(":");
             episodeNum = parts[2] || "";
-            const kRes = await axios.get(`https://kitsu.io/api/edge/anime/${parts[1]}`, { timeout: 4500 });
+            const kRes = await axios.get(`[https://kitsu.io/api/edge/anime/$](https://kitsu.io/api/edge/anime/$){parts[1]}`, { timeout: 4500 });
             mediaTitle = kRes.data.data.attributes.canonicalTitle || kRes.data.data.attributes.titles.en;
         } else if (targetId.startsWith("tmdb:")) {
             const parts = targetId.split(":");
@@ -257,7 +257,7 @@ async function handleStream(req, res, configStr) {
             episodeNum = parts[3];
             const isTv = type === "series";
             
-            const tRes = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 4500 });
+            const tRes = await axios.get(`[https://api.themoviedb.org/3/$](https://api.themoviedb.org/3/$){isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 4500 });
             mediaTitle = tRes.data.title || tRes.data.name;
             const imdbId = tRes.data.external_ids?.imdb_id || tRes.data.imdb_id;
             
@@ -277,13 +277,13 @@ async function handleStream(req, res, configStr) {
     const providersList = [];
 
     if (config.providers.torrentio) {
-        let tUrl = "https://torrentio.strem.fun";
+        let tUrl = "[https://torrentio.strem.fun](https://torrentio.strem.fun)";
         let tConfig = "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex,nekobt,rutor,rutracker,comando,bludv,torrent9,mejortorrent,wolfmax4k,cinecalidad";
         providersList.push(`${tUrl}/${tConfig}/stream/${scraperType}/${targetId}.json`);
     }
 
     if (config.providers.mediafusion || config.providers.hdhub || config.providers.desiflix || config.providers.tamilmv || config.providers.tamilblasters) {
-        providersList.push(`https://mediafusion.elfhosted.com/stream/${scraperType}/${targetId}.json`);
+        providersList.push(`[https://mediafusion.elfhosted.com/stream/$](https://mediafusion.elfhosted.com/stream/$){scraperType}/${targetId}.json`);
     }
 
     await Promise.allSettled(providersList.map(async (providerUrl) => {
@@ -301,7 +301,7 @@ async function handleStream(req, res, configStr) {
         const queries = [`${searchQuery} Hindi`, searchQuery];
         for (let q of queries) {
             try {
-                let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(q.trim())}&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
+                let bitRes = await axios.get(`[https://bitsearch.info/api/v1/search?q=$](https://bitsearch.info/api/v1/search?q=$){encodeURIComponent(q.trim())}&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
                 if (bitRes.data && bitRes.data.data && Array.isArray(bitRes.data.data)) {
                     bitRes.data.data.forEach(t => {
                         allStreams.push({ title: t.name, infoHash: t.infohash, seeders: parseInt(t.seeders) || 0, isNative: true, provider: "BitSearch" });
@@ -314,7 +314,7 @@ async function handleStream(req, res, configStr) {
 
     if (config.providers.nyaa && isAnime && allStreams.length < 20 && mediaTitle) {
         try {
-            let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(mediaTitle)}&c=0_0&f=0`, { timeout: 4000 });
+            let nyaaRes = await axios.get(`[https://nyaa.si/?page=rss&q=$](https://nyaa.si/?page=rss&q=$){encodeURIComponent(mediaTitle)}&c=0_0&f=0`, { timeout: 4000 });
             const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
             items.forEach(item => {
                 const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
@@ -329,7 +329,7 @@ async function handleStream(req, res, configStr) {
 
     if (config.providers.yts && !isAnime && allStreams.length < 20 && mediaTitle && type === "movie") {
         try {
-            let ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
+            let ytsRes = await axios.get(`[https://yts.mx/api/v2/list_movies.json?query_term=$](https://yts.mx/api/v2/list_movies.json?query_term=$){encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
             if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
                 ytsRes.data.data.movies.forEach(m => {
                     if(m.torrents && Array.isArray(m.torrents)) {
@@ -478,7 +478,7 @@ function renderConfigPage(res, currentConfig) {
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png" alt="AuraFlix Logo" class="logo" onerror="this.style.display='none'">
+                    <img src="[https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png](https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png)" alt="AuraFlix Logo" class="logo" onerror="this.style.display='none'">
                     <h1>AuraFlix 100% Free</h1>
                     <p class="desc">No Paid APIs. Pure Free Direct Web Streams & P2P Torrents.</p>
                 </div>
@@ -608,12 +608,3 @@ function renderConfigPage(res, currentConfig) {
 
 const PORT = process.env.PORT || 7000;
 app.listen(PORT, () => console.log("Server running on port " + PORT));
-"""
-
-with open("package.json", "w", encoding="utf-8") as f:
-    f.write(package_json_content)
-
-with open("server.js", "w", encoding="utf-8") as f:
-    f.write(server_js_content)
-}
-}
