@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-god-mode-fixed",
-  "version": "24.0.0",
-  "description": "100% Free Scraper Engine. Fixed TMDB Catalog Logic, Working Torrentio Links.",
+  "name": "auraflix-god-mode",
+  "version": "25.0.0",
+  "description": "100% Free Scraper. Cinemeta Bypass Restored, Working Catalogs & Streams.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
