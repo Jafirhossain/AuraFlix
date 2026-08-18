@@ -4,7 +4,7 @@ const axios = require("axios");
 const TMDB_API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
 
 const SCRAPER_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*"
 };
 
@@ -44,47 +44,31 @@ function parseConfig(configStr) {
 function getManifest(config) {
     const extraParams = [{ name: "search", isRequired: false }, { name: "skip", isRequired: false }];
     
-    // PROFESSIONALLY SEPARATED INDIVIDUAL CATALOGS WITH TRENDING & LATEST
     const allCatalogs = [
-        // ANIME
         { type: "series", id: "anime_trending", name: "🔥 Anime: Trending", extra: extraParams },
         { type: "series", id: "anime_airing", name: "⚡ Anime: Latest Airing", extra: extraParams },
         { type: "movie", id: "anime_movies", name: "🎬 Anime: Movies", extra: extraParams },
-
-        // BOLLYWOOD
         { type: "movie", id: "bolly_trending", name: "🔥 Bollywood: Trending", extra: extraParams },
         { type: "movie", id: "bolly_latest", name: "🆕 Bollywood: Latest Releases", extra: extraParams },
-
-        // SOUTH INDIAN
         { type: "movie", id: "south_trending", name: "🌟 South Indian: Trending", extra: extraParams },
         { type: "movie", id: "south_latest", name: "💥 South Indian: Latest Releases", extra: extraParams },
-
-        // NETFLIX
         { type: "series", id: "netflix_trending", name: "👑 Netflix: Trending", extra: extraParams },
         { type: "series", id: "netflix_latest", name: "👑 Netflix: Latest", extra: extraParams },
-
-        // AMAZON PRIME
         { type: "series", id: "prime_trending", name: "📦 Amazon Prime: Trending", extra: extraParams },
         { type: "series", id: "prime_latest", name: "📦 Amazon Prime: Latest", extra: extraParams },
-
-        // DISNEY+ HOTSTAR
         { type: "series", id: "hotstar_trending", name: "✨ Disney+ Hotstar: Trending", extra: extraParams },
         { type: "series", id: "hotstar_latest", name: "✨ Disney+ Hotstar: Latest", extra: extraParams },
-
-        // SONYLIV & ZEE5
         { type: "series", id: "sonyliv_trending", name: "🍿 SonyLIV: Trending", extra: extraParams },
         { type: "series", id: "zee5_trending", name: "🍿 Zee5: Trending", extra: extraParams },
-
-        // HOLLYWOOD HINDI DUBBED
         { type: "movie", id: "holly_trending", name: "🌍 Hollywood (Hindi): Trending", extra: extraParams },
         { type: "movie", id: "holly_latest", name: "🌍 Hollywood (Hindi): Latest", extra: extraParams }
     ];
 
     return {
         id: "org.auraflix.pro",
-        version: "28.0.0",
+        version: "29.0.0",
         name: "AuraFlix PRO 🇮🇳",
-        description: "Professional Engine: Fully Separated Platform Catalogs (Netflix, Prime, Hotstar, South, Anime) + God-Mode Multi-Language Scraper.",
+        description: "Professional Engine: Fully Separated Platform Catalogs + Ultimate Universal Link Scraper.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
         resources: [
@@ -291,16 +275,12 @@ async function handleStream(req, res) {
 
     let allStreams = [];
     const scraperType = isAnime ? "anime" : (seasonNum ? "series" : "movie");
-    const providersList = [];
 
-    // BULLETPROOF PIPELINE: Direct Torrentio + MediaFusion + BitSearch bypass
-    if (config.providers.torrentio) {
-        providersList.push(`https://torrentio.strem.fun/stream/${scraperType}/${targetId}.json`);
-    }
-
-    if (config.providers.mediafusion || config.providers.hdhub || config.providers.desiflix || config.providers.tamilmv || config.providers.tamilblasters) {
-        providersList.push(`https://mediafusion.elfhosted.com/stream/${scraperType}/${targetId}.json`);
-    }
+    // 1. PRIMARY FETCH: Torrentio & MediaFusion
+    const providersList = [
+        `https://torrentio.strem.fun/stream/${scraperType}/${targetId}.json`,
+        `https://mediafusion.elfhosted.com/stream/${scraperType}/${targetId}.json`
+    ];
 
     await Promise.allSettled(providersList.map(async (providerUrl) => {
         try {
@@ -312,20 +292,27 @@ async function handleStream(req, res) {
         } catch(e) { }
     }));
 
-    // ROBUST FALLBACK 1: BitSearch Direct API Scraper for Unresolved IDs
+    // 2. BULLETPROOF BACKUP: If primary fails, query BitSearch directly using media title!
     if (allStreams.length === 0 && mediaTitle) {
         let searchQuery = isAnime ? `${mediaTitle} ${episodeNum}` : (seasonNum ? `${mediaTitle} S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : mediaTitle);
+        
         try {
-            let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(searchQuery)}&limit=25`, { headers: SCRAPER_HEADERS, timeout: 5000 });
+            let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(searchQuery)}&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
             if (bitRes.data && bitRes.data.data && Array.isArray(bitRes.data.data)) {
                 bitRes.data.data.forEach(t => {
-                    allStreams.push({ title: t.name, infoHash: t.infohash, seeders: parseInt(t.seeders) || 10, isNative: true, provider: "BitSearch" });
+                    allStreams.push({ 
+                        title: t.name, 
+                        infoHash: t.infohash, 
+                        seeders: parseInt(t.seeders) || 15, 
+                        isNative: true, 
+                        provider: "BitSearch" 
+                    });
                 });
             }
         } catch(e) {}
     }
 
-    // ROBUST FALLBACK 2: Nyaa for Anime
+    // 3. ANIME BACKUP: Nyaa RSS
     if (isAnime && allStreams.length === 0 && mediaTitle) {
         try {
             let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(mediaTitle + " " + episodeNum)}&c=0_0&f=0`, { timeout: 4000 });
@@ -335,7 +322,13 @@ async function handleStream(req, res) {
                 const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
                 const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
                 if (titleMatch && hashMatch) {
-                    allStreams.push({ title: titleMatch[1], infoHash: hashMatch[1], seeders: parseInt(seedsMatch ? seedsMatch[1] : 20), isNative: true, provider: "Nyaa" });
+                    allStreams.push({ 
+                        title: titleMatch[1], 
+                        infoHash: hashMatch[1], 
+                        seeders: parseInt(seedsMatch ? seedsMatch[1] : 25), 
+                        isNative: true, 
+                        provider: "Nyaa" 
+                    });
                 }
             });
         } catch(e) {}
@@ -353,7 +346,7 @@ async function handleStream(req, res) {
         let fullText = rawTitle + " " + rawName + " " + (s.description || "").toLowerCase();
 
         let seedMatch = rawTitle.match(/👤\s*(\d+)/) || rawTitle.match(/seeds:\s*(\d+)/i);
-        let seeders = s.seeders || (seedMatch ? parseInt(seedMatch[1]) : (s.url ? 999 : 5)); 
+        let seeders = s.seeders || (seedMatch ? parseInt(seedMatch[1]) : 15); 
         
         let isDirect = Boolean(s.url) || fullText.includes("pixeldrain") || fullText.includes("mega") || fullText.includes("direct");
 

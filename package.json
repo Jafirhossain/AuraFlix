@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-pro-v28",
-  "version": "28.0.0",
-  "description": "Ultimate AuraFlix Pro Engine. Fixed Stream Scraper Pipeline & Separated Professional Catalogs.",
+  "name": "auraflix-pro-v29",
+  "version": "29.0.0",
+  "description": "AuraFlix Pro Ultimate Scraper Bypass Engine.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
