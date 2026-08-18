@@ -12,8 +12,8 @@ function getDefaultConfig() {
     return {
         catalogs: {
             anime_airing: true, anime_trending: true, anime_movies: true, anime_popular: true,
-            south_trending: true, south_new_releases: true, hindi_webseries: true,
-            netflix_prime: true, hotstar_sonyliv: true, hollywood_hindi: true
+            bolly_new: true, bolly_trending: true, south_new: true, south_trending: true,
+            series_hindi_new: true, series_netflix_prime: true, series_hotstar_sony: true, holly_trending: true
         },
         providers: {
             torrentio: true, bitsearch: true, nyaa: true, yts: true,
@@ -37,32 +37,32 @@ function parseConfig(configStr) {
 }
 
 function getManifest(config) {
-    // THE BYPASS: Restored 'extra' so catalogs load properly without blanking out
     const extraParams = [{ name: "search", isRequired: false }, { name: "skip", isRequired: false }];
     
     const allCatalogs = [
-        { type: "series", id: "anime_airing", name: "⚡ Japan Airing Anime", extra: extraParams },
+        { type: "series", id: "anime_airing", name: "⚡ Top Airing Anime", extra: extraParams },
         { type: "series", id: "anime_trending", name: "🔥 Trending Anime Series", extra: extraParams },
-        { type: "movie", id: "anime_movies", name: "🎬 Anime Movies & OVAs", extra: extraParams },
-        { type: "series", id: "anime_popular", name: "🏆 All-Time Anime Masterpieces", extra: extraParams },
-        { type: "movie", id: "south_trending", name: "💥 Trending South Movies (Hindi)", extra: extraParams },
-        { type: "movie", id: "south_new_releases", name: "🆕 New South Releases", extra: extraParams },
-        { type: "series", id: "hindi_webseries", name: "🇮🇳 All Hindi Web Series", extra: extraParams },
-        { type: "series", id: "netflix_prime", name: "👑 Netflix & Prime Hub", extra: extraParams },
-        { type: "series", id: "hotstar_sonyliv", name: "🔥 Hotstar, SonyLIV & Zee5", extra: extraParams },
-        { type: "movie", id: "hollywood_hindi", name: "🎬 Hollywood Hindi Dubbed", extra: extraParams }
+        { type: "movie", id: "anime_movies", name: "🎬 New Anime Movies", extra: extraParams },
+        { type: "series", id: "anime_popular", name: "🏆 Anime Masterpieces", extra: extraParams },
+        { type: "movie", id: "bolly_new", name: "🆕 Latest Bollywood Releases", extra: extraParams },
+        { type: "movie", id: "bolly_trending", name: "🔥 Trending Bollywood", extra: extraParams },
+        { type: "movie", id: "south_new", name: "💥 New South Indian Movies", extra: extraParams },
+        { type: "movie", id: "south_trending", name: "🌟 Popular South Indian", extra: extraParams },
+        { type: "series", id: "series_hindi_new", name: "📺 Latest Indian Web Series", extra: extraParams },
+        { type: "series", id: "series_netflix_prime", name: "👑 Netflix & Prime Hub", extra: extraParams },
+        { type: "series", id: "series_hotstar_sony", name: "🍿 Hotstar, SonyLIV, JioCinema", extra: extraParams },
+        { type: "movie", id: "holly_trending", name: "🌍 Trending Hollywood", extra: extraParams }
     ];
 
     return {
-        id: "org.auraflix.free",
-        version: "25.0.0",
-        name: "AuraFlix VIP 🇮🇳",
-        description: "God Mode Engine: Direct Links, P2P Streams, Fast Posters & Hindi Priority.",
-        logo: "[https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png](https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png)",
-        background: "[https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop](https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop)",
+        id: "org.auraflix.pro",
+        version: "27.0.0",
+        name: "AuraFlix PRO 🇮🇳",
+        description: "Universal Scraper with Multi-Language Flags & Live Auto-Updating Catalogs.",
+        logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
+        background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
         resources: [
             "catalog",
-            // THE BYPASS: Let Cinemeta handle TMDB posters (No Blank Pages / Unknown Titles)
             { name: "meta", types: ["anime", "series", "movie"], idPrefixes: ["kitsu"] }, 
             { name: "stream", types: ["anime", "series", "movie"], idPrefixes: ["kitsu", "tmdb", "tt"] }
         ],
@@ -74,9 +74,9 @@ function getManifest(config) {
 
 async function fetchAnime(catalogId, search = null, skip = 0) {
     try {
-        let url = `[https://kitsu.io/api/edge/anime?page](https://kitsu.io/api/edge/anime?page)[limit]=20&page[offset]=${skip || 0}`;
+        let url = `https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=${skip || 0}`;
         if (search) url += `&filter[text]=${encodeURIComponent(search)}`;
-        else if (catalogId === "anime_trending") url = `[https://kitsu.io/api/edge/trending/anime?page](https://kitsu.io/api/edge/trending/anime?page)[limit]=20`;
+        else if (catalogId === "anime_trending") url = `https://kitsu.io/api/edge/trending/anime?page[limit]=20`;
         else if (catalogId === "anime_airing") url += `&filter[status]=current&sort=-userCount`;
         else if (catalogId === "anime_movies") url += `&filter[subtype]=movie&sort=-userCount`;
         else if (catalogId === "anime_popular") url += `&sort=popularityRank`;
@@ -88,7 +88,7 @@ async function fetchAnime(catalogId, search = null, skip = 0) {
                 id: `kitsu:${anime.id}`,
                 type: "anime",
                 name: attr.canonicalTitle || attr.titles?.en || "Anime",
-                poster: attr.posterImage?.large || attr.posterImage?.original || "[https://via.placeholder.com/500x750?text=No+Poster](https://via.placeholder.com/500x750?text=No+Poster)",
+                poster: attr.posterImage?.large || attr.posterImage?.original || "https://via.placeholder.com/500x750?text=No+Poster",
                 background: attr.coverImage?.large || attr.coverImage?.original,
                 description: "⭐ Score: " + (attr.averageRating || "N/A") + "% | 📌 Episodes: " + (attr.episodeCount || 'Ongoing') + "\n\n" + (attr.synopsis || "")
             };
@@ -99,24 +99,28 @@ async function fetchAnime(catalogId, search = null, skip = 0) {
 async function fetchOTTContent(catalogId, search = null, skip = 0) {
     try {
         const page = Math.floor((skip || 0) / 20) + 1;
-        let isSeries = catalogId.includes("series") || catalogId.includes("netflix") || catalogId.includes("hotstar") || catalogId.includes("hindi_webseries");
+        let isSeries = catalogId.includes("series");
         let url = "";
         const today = new Date().toISOString().split('T')[0];
 
         if (search) {
-            url = `[https://api.themoviedb.org/3/search/$](https://api.themoviedb.org/3/search/$){isSeries ? 'tv' : 'movie'}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&page=${page}`;
-        } else if (catalogId === "hindi_webseries") {
-            url = `[https://api.themoviedb.org/3/discover/tv?api_key=$](https://api.themoviedb.org/3/discover/tv?api_key=$){TMDB_API_KEY}&with_original_language=hi&sort_by=popularity.desc&page=${page}`;
-        } else if (catalogId === "netflix_prime") {
-            url = `[https://api.themoviedb.org/3/discover/tv?api_key=$](https://api.themoviedb.org/3/discover/tv?api_key=$){TMDB_API_KEY}&with_watch_providers=8|119&watch_region=IN&sort_by=popularity.desc&page=${page}`;
-        } else if (catalogId === "hotstar_sonyliv") {
-            url = `[https://api.themoviedb.org/3/discover/tv?api_key=$](https://api.themoviedb.org/3/discover/tv?api_key=$){TMDB_API_KEY}&with_watch_providers=122|220|237|232&watch_region=IN&sort_by=popularity.desc&page=${page}`;
+            url = `https://api.themoviedb.org/3/search/${isSeries ? 'tv' : 'movie'}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&page=${page}`;
+        } else if (catalogId === "bolly_new") {
+            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=hi&sort_by=primary_release_date.desc&primary_release_date.lte=${today}&vote_count.gte=2&page=${page}`;
+        } else if (catalogId === "bolly_trending") {
+            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=hi&sort_by=popularity.desc&page=${page}`;
+        } else if (catalogId === "south_new") {
+            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=te|ta|ml|kn&sort_by=primary_release_date.desc&primary_release_date.lte=${today}&vote_count.gte=2&page=${page}`;
         } else if (catalogId === "south_trending") {
-            url = `[https://api.themoviedb.org/3/discover/movie?api_key=$](https://api.themoviedb.org/3/discover/movie?api_key=$){TMDB_API_KEY}&with_original_language=te|ta|ml|kn&sort_by=popularity.desc&page=${page}`;
-        } else if (catalogId === "south_new_releases") {
-            url = `[https://api.themoviedb.org/3/discover/movie?api_key=$](https://api.themoviedb.org/3/discover/movie?api_key=$){TMDB_API_KEY}&with_original_language=te|ta|ml|kn&primary_release_date.lte=${today}&sort_by=primary_release_date.desc&page=${page}`;
-        } else if (catalogId === "hollywood_hindi") {
-            url = `[https://api.themoviedb.org/3/discover/movie?api_key=$](https://api.themoviedb.org/3/discover/movie?api_key=$){TMDB_API_KEY}&with_original_language=en&sort_by=popularity.desc&page=${page}`;
+            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=te|ta|ml|kn&sort_by=popularity.desc&page=${page}`;
+        } else if (catalogId === "series_hindi_new") {
+            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=hi&sort_by=popularity.desc&page=${page}`;
+        } else if (catalogId === "series_netflix_prime") {
+            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=8|119&watch_region=IN&sort_by=popularity.desc&page=${page}`;
+        } else if (catalogId === "series_hotstar_sony") {
+            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=122|237|232|220&watch_region=IN&sort_by=popularity.desc&page=${page}`;
+        } else if (catalogId === "holly_trending") {
+            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=en&sort_by=popularity.desc&page=${page}`;
         }
 
         if (!url) return [];
@@ -126,8 +130,8 @@ async function fetchOTTContent(catalogId, search = null, skip = 0) {
             id: `tmdb:${m.id}`,
             type: isSeries ? "series" : "movie",
             name: m.title || m.name,
-            poster: m.poster_path ? `[https://image.tmdb.org/t/p/w500$](https://image.tmdb.org/t/p/w500$){m.poster_path}` : "[https://via.placeholder.com/500x750?text=No+Poster](https://via.placeholder.com/500x750?text=No+Poster)",
-            background: m.backdrop_path ? `[https://image.tmdb.org/t/p/original$](https://image.tmdb.org/t/p/original$){m.backdrop_path}` : undefined,
+            poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
+            background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined,
             description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 " + (m.release_date || m.first_air_date || "TBA") + "\n\n" + (m.overview || "")
         }));
     } catch (e) { return []; }
@@ -142,7 +146,6 @@ app.get("/:config/configure", (req, res) => renderConfigPage(res, parseConfig(re
 app.get("/manifest.json", (req, res) => res.json(getManifest(getDefaultConfig())));
 app.get("/:config/manifest.json", (req, res) => res.json(getManifest(parseConfig(req.params.config))));
 
-// THE BYPASS: Powerful Route Matcher for Catalogs & Searching
 app.get("/catalog/:type/:id.json", handleCatalog);
 app.get("/catalog/:type/:id/:extra", handleCatalog);
 app.get("/:config/catalog/:type/:id.json", handleCatalog);
@@ -170,7 +173,6 @@ async function handleCatalog(req, res) {
     return res.json({ metas });
 }
 
-// Meta Handler (Only for Anime, TMDB handled by Cinemeta automatically)
 app.get("/meta/:type/:id.json", handleMeta);
 app.get("/:config/meta/:type/:id.json", handleMeta);
 
@@ -179,13 +181,13 @@ async function handleMeta(req, res) {
     if (id.startsWith("kitsu:")) {
         try {
             const cleanId = id.replace("kitsu:", "");
-            const resData = await axios.get(`[https://kitsu.io/api/edge/anime/$](https://kitsu.io/api/edge/anime/$){cleanId}`, { timeout: 6000 });
+            const resData = await axios.get(`https://kitsu.io/api/edge/anime/${cleanId}`, { timeout: 6000 });
             const attr = resData.data.data.attributes;
             const isMovie = attr.subtype === "movie";
             
             let metaObj = { 
                 id, type: "anime", name: attr.canonicalTitle || attr.titles?.en || "Anime", 
-                poster: attr.posterImage?.large || "[https://via.placeholder.com/500x750?text=No+Poster](https://via.placeholder.com/500x750?text=No+Poster)", 
+                poster: attr.posterImage?.large || "https://via.placeholder.com/500x750?text=No+Poster", 
                 background: attr.coverImage?.large, 
                 description: attr.synopsis || "No description available.",
                 imdbRating: attr.averageRating ? (attr.averageRating / 10).toFixed(1) : undefined
@@ -205,7 +207,6 @@ async function handleMeta(req, res) {
     return res.status(404).send("Not Found"); 
 }
 
-// THE BYPASS: Pure & Unrestricted Streams Logic
 app.get("/stream/:type/:id.json", handleStream);
 app.get("/stream/:type/:id/:extra", handleStream);
 app.get("/:config/stream/:type/:id.json", handleStream);
@@ -226,7 +227,7 @@ async function handleStream(req, res) {
         if (isAnime) {
             const parts = targetId.split(":");
             episodeNum = parts[2] || "";
-            const kRes = await axios.get(`[https://kitsu.io/api/edge/anime/$](https://kitsu.io/api/edge/anime/$){parts[1]}`, { timeout: 4500 });
+            const kRes = await axios.get(`https://kitsu.io/api/edge/anime/${parts[1]}`, { timeout: 4500 });
             mediaTitle = kRes.data.data.attributes.canonicalTitle || kRes.data.data.attributes.titles.en;
         } else if (targetId.startsWith("tmdb:")) {
             const parts = targetId.split(":");
@@ -235,7 +236,7 @@ async function handleStream(req, res) {
             episodeNum = parts[3];
             const isTv = type === "series";
             
-            const tRes = await axios.get(`[https://api.themoviedb.org/3/$](https://api.themoviedb.org/3/$){isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 4500 });
+            const tRes = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 4500 });
             mediaTitle = tRes.data.title || tRes.data.name;
             const imdbId = tRes.data.external_ids?.imdb_id || tRes.data.imdb_id;
             
@@ -255,13 +256,13 @@ async function handleStream(req, res) {
     const scraperType = isAnime ? "anime" : (seasonNum ? "series" : "movie");
     const providersList = [];
 
-    // THE BYPASS: Clean Torrentio Call to load EVERYTHING!
+    // UNIVERSAL SCRAPER ROUTE
     if (config.providers.torrentio) {
-        providersList.push(`[https://torrentio.strem.fun/stream/$](https://torrentio.strem.fun/stream/$){scraperType}/${targetId}.json`);
+        providersList.push(`https://torrentio.strem.fun/stream/${scraperType}/${targetId}.json`);
     }
 
     if (config.providers.mediafusion || config.providers.hdhub || config.providers.desiflix || config.providers.tamilmv || config.providers.tamilblasters) {
-        providersList.push(`[https://mediafusion.elfhosted.com/stream/$](https://mediafusion.elfhosted.com/stream/$){scraperType}/${targetId}.json`);
+        providersList.push(`https://mediafusion.elfhosted.com/stream/${scraperType}/${targetId}.json`);
     }
 
     await Promise.allSettled(providersList.map(async (providerUrl) => {
@@ -279,7 +280,7 @@ async function handleStream(req, res) {
         const queries = [`${searchQuery} Hindi`, searchQuery];
         for (let q of queries) {
             try {
-                let bitRes = await axios.get(`[https://bitsearch.info/api/v1/search?q=$](https://bitsearch.info/api/v1/search?q=$){encodeURIComponent(q.trim())}&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
+                let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(q.trim())}&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
                 if (bitRes.data && bitRes.data.data && Array.isArray(bitRes.data.data)) {
                     bitRes.data.data.forEach(t => {
                         allStreams.push({ title: t.name, infoHash: t.infohash, seeders: parseInt(t.seeders) || 0, isNative: true, provider: "BitSearch" });
@@ -288,36 +289,6 @@ async function handleStream(req, res) {
             } catch(e) {}
             if (allStreams.length > 5) break;
         }
-    }
-
-    if (config.providers.nyaa && isAnime && allStreams.length < 20 && mediaTitle) {
-        try {
-            let nyaaRes = await axios.get(`[https://nyaa.si/?page=rss&q=$](https://nyaa.si/?page=rss&q=$){encodeURIComponent(mediaTitle)}&c=0_0&f=0`, { timeout: 4000 });
-            const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
-            items.forEach(item => {
-                const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
-                const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
-                const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
-                if (titleMatch && hashMatch) {
-                    allStreams.push({ title: titleMatch[1], infoHash: hashMatch[1], seeders: parseInt(seedsMatch ? seedsMatch[1] : 20), isNative: true, provider: "Nyaa" });
-                }
-            });
-        } catch(e) {}
-    }
-
-    if (config.providers.yts && !isAnime && allStreams.length < 20 && mediaTitle && type === "movie") {
-        try {
-            let ytsRes = await axios.get(`[https://yts.mx/api/v2/list_movies.json?query_term=$](https://yts.mx/api/v2/list_movies.json?query_term=$){encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
-            if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
-                ytsRes.data.data.movies.forEach(m => {
-                    if(m.torrents && Array.isArray(m.torrents)) {
-                        m.torrents.forEach(t => {
-                            allStreams.push({ title: `${m.title} ${t.quality} ${t.type}`, infoHash: t.hash, seeders: t.seeds || 15, isNative: true, provider: "YTS" });
-                        });
-                    }
-                });
-            }
-        } catch(e) {}
     }
 
     let processedStreams = [];
@@ -371,16 +342,22 @@ async function handleStream(req, res) {
 
         if (excludes.includes("cam") && (fullText.includes("cam") || fullText.includes("ts") || fullText.includes("hdcam"))) return;
 
-        let isHindi = /\b(hindi|dual\s*audio|multi\s*audio|hin-eng|dubbed\s*in\s*hindi|hin)\b/i.test(fullText);
-        let isSouth = /\b(telugu|tamil|malayalam|kannada|tam|tel|mal)\b/i.test(fullText);
-
+        // MULTI-LANGUAGE FLAG DETECTOR (Dynamic Flags for Every Language)
         let langBadge = "🌐 MULTI AUDIO";
         let langRank = 1;
 
-        if (isHindi) { langBadge = "🇮🇳 HINDI DUB"; langRank = 15; }
-        else if (isSouth) { langBadge = "🇮🇳 SOUTH ORIGINAL"; langRank = 10; }
-        
-        if (config.langPriority === "hindi" && isHindi) langRank = 50;
+        if (/\b(hindi|hin)\b/i.test(fullText)) { langBadge = "🇮🇳 HINDI DUB"; langRank = 40; }
+        else if (/\b(tamil|tam)\b/i.test(fullText)) { langBadge = "🇮🇳 TAMIL"; langRank = 25; }
+        else if (/\b(telugu|tel)\b/i.test(fullText)) { langBadge = "🇮🇳 TELUGU"; langRank = 25; }
+        else if (/\b(malayalam|mal)\b/i.test(fullText)) { langBadge = "🇮🇳 MALAYALAM"; langRank = 20; }
+        else if (/\b(kannada|kan)\b/i.test(fullText)) { langBadge = "🇮🇳 KANNADA"; langRank = 20; }
+        else if (/\b(japanese|jap)\b/i.test(fullText)) { langBadge = "🇯🇵 JAPANESE"; langRank = 15; }
+        else if (/\b(english|eng)\b/i.test(fullText)) { langBadge = "🇺🇸 ENGLISH"; langRank = 10; }
+        else if (/\b(korean|kor)\b/i.test(fullText)) { langBadge = "🇰🇷 KOREAN"; langRank = 10; }
+
+        if (config.langPriority === "hindi" && /\b(hindi|hin)\b/i.test(fullText)) {
+            langRank = 60; // Top Priority to Hindi if selected
+        }
 
         let providerTag = "🚀 P2P STREAM";
         if (fullText.includes("mediafusion") || rawName.includes("mediafusion") || fullText.includes("hdhub") || fullText.includes("desiflix") || fullText.includes("tamilmv") || fullText.includes("tamilblasters")) providerTag = "🔥 MEDIAFUSION";
@@ -426,7 +403,7 @@ function renderConfigPage(res, currentConfig) {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>AuraFlix Free Advanced Settings</title>
+            <title>AuraFlix PRO Settings</title>
             <style>
                 body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
                 .container { max-width: 800px; margin: 0 auto; background: #111827; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #1f2937; }
@@ -453,13 +430,13 @@ function renderConfigPage(res, currentConfig) {
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="[https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png](https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png)" alt="AuraFlix Logo" class="logo" onerror="this.style.display='none'">
-                    <h1>AuraFlix 100% Free</h1>
-                    <p class="desc">No Paid APIs. Pure Free Direct Web Streams & P2P Torrents.</p>
+                    <img src="https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png" alt="AuraFlix Logo" class="logo" onerror="this.style.display='none'">
+                    <h1>AuraFlix PRO 🇮🇳</h1>
+                    <p class="desc">Universal Scraper & Live Multi-Language Catalogs.</p>
                 </div>
                 
                 <div class="section">
-                    <div class="section-title">🔍 Select Streaming Providers (100% Free)</div>
+                    <div class="section-title">🔍 Select Streaming Providers</div>
                     <div class="provider-split">
                         <div class="provider-box">
                             <h3 style="color:#38bdf8;">🚀 Torrent Providers (P2P)</h3>
@@ -480,18 +457,23 @@ function renderConfigPage(res, currentConfig) {
                 </div>
 
                 <div class="section">
-                    <div class="section-title">📺 Stremio Home Catalogues</div>
+                    <div class="section-title">📺 Professional Live Catalogs</div>
                     <div class="grid-2">
-                        <label><input type="checkbox" id="cat_anime_airing"> ⚡ Japan Airing Anime</label>
+                        <label><input type="checkbox" id="cat_anime_airing"> ⚡ Top Airing Anime</label>
                         <label><input type="checkbox" id="cat_anime_trending"> 🔥 Trending Anime</label>
-                        <label><input type="checkbox" id="cat_anime_movies"> 🎬 Anime Movies</label>
+                        <label><input type="checkbox" id="cat_anime_movies"> 🎬 New Anime Movies</label>
                         <label><input type="checkbox" id="cat_anime_popular"> 🏆 Anime Masterpieces</label>
-                        <label><input type="checkbox" id="cat_south_trending"> 💥 Trending South (Hindi)</label>
-                        <label><input type="checkbox" id="cat_south_new_releases"> 🆕 New South Releases</label>
-                        <label><input type="checkbox" id="cat_hindi_webseries"> 🇮🇳 Hindi Web Series</label>
-                        <label><input type="checkbox" id="cat_netflix_prime"> 👑 Netflix & Prime Hub</label>
-                        <label><input type="checkbox" id="cat_hotstar_sonyliv"> 🔥 Hotstar, SonyLIV & Zee5</label>
-                        <label><input type="checkbox" id="cat_hollywood_hindi"> 🎬 Hollywood Hindi Dub</label>
+                        
+                        <label><input type="checkbox" id="cat_bolly_new"> 🆕 Latest Bollywood</label>
+                        <label><input type="checkbox" id="cat_bolly_trending"> 🔥 Trending Bollywood</label>
+                        
+                        <label><input type="checkbox" id="cat_south_new"> 💥 New South Indian</label>
+                        <label><input type="checkbox" id="cat_south_trending"> 🌟 Popular South Indian</label>
+                        
+                        <label><input type="checkbox" id="cat_series_hindi_new"> 📺 Latest Indian Web Series</label>
+                        <label><input type="checkbox" id="cat_series_netflix_prime"> 👑 Netflix & Prime Hub</label>
+                        <label><input type="checkbox" id="cat_series_hotstar_sony"> 🍿 Hotstar, SonyLIV, JioCinema</label>
+                        <label><input type="checkbox" id="cat_holly_trending"> 🌍 Trending Hollywood</label>
                     </div>
                 </div>
 
@@ -514,7 +496,7 @@ function renderConfigPage(res, currentConfig) {
                     </select>
                 </div>
 
-                <a id="installBtn" class="btn" href="#">Install Addon</a>
+                <a id="installBtn" class="btn" href="#">Install AuraFlix PRO</a>
             </div>
 
             <script>
@@ -526,7 +508,7 @@ function renderConfigPage(res, currentConfig) {
                     }
                 });
 
-                ['anime_airing', 'anime_trending', 'anime_movies', 'anime_popular', 'south_trending', 'south_new_releases', 'hindi_webseries', 'netflix_prime', 'hotstar_sonyliv', 'hollywood_hindi'].forEach(id => {
+                ['anime_airing', 'anime_trending', 'anime_movies', 'anime_popular', 'bolly_new', 'bolly_trending', 'south_new', 'south_trending', 'series_hindi_new', 'series_netflix_prime', 'series_hotstar_sony', 'holly_trending'].forEach(id => {
                     if(document.getElementById('cat_' + id)) {
                         document.getElementById('cat_' + id).checked = initialConfig.catalogs[id] !== false;
                     }
@@ -543,7 +525,7 @@ function renderConfigPage(res, currentConfig) {
 
                 function updateUrl() {
                     let catObj = {};
-                    ['anime_airing', 'anime_trending', 'anime_movies', 'anime_popular', 'south_trending', 'south_new_releases', 'hindi_webseries', 'netflix_prime', 'hotstar_sonyliv', 'hollywood_hindi'].forEach(id => {
+                    ['anime_airing', 'anime_trending', 'anime_movies', 'anime_popular', 'bolly_new', 'bolly_trending', 'south_new', 'south_trending', 'series_hindi_new', 'series_netflix_prime', 'series_hotstar_sony', 'holly_trending'].forEach(id => {
                         if(document.getElementById('cat_' + id)) catObj[id] = document.getElementById('cat_' + id).checked;
                     });
 

@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-god-mode",
-  "version": "25.0.0",
-  "description": "100% Free Scraper. Cinemeta Bypass Restored, Working Catalogs & Streams.",
+  "name": "auraflix-ultimate-scraper-pro",
+  "version": "27.0.0",
+  "description": "Professional Scraper Engine with Multi-Language Flags and Universal Link Bypasser.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
