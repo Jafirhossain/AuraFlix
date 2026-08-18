@@ -1,7 +1,7 @@
 {
-  "name": "auraflix-pro-v29",
-  "version": "29.0.0",
-  "description": "AuraFlix Pro Ultimate Scraper Bypass Engine.",
+  "name": "auraflix-independent-engine",
+  "version": "30.0.0",
+  "description": "100% Independent Scraper Engine. Indonesian Horror Vault, Global Horror, Multi-Language Flags & Direct P2P Scrapers.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

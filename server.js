@@ -11,18 +11,16 @@ const SCRAPER_HEADERS = {
 function getDefaultConfig() {
     return {
         catalogs: {
+            indo_horror_trending: true, indo_horror_latest: true,
+            global_horror: true,
             anime_trending: true, anime_airing: true, anime_movies: true,
             bolly_trending: true, bolly_latest: true,
             south_trending: true, south_latest: true,
-            netflix_trending: true, netflix_latest: true,
-            prime_trending: true, prime_latest: true,
-            hotstar_trending: true, hotstar_latest: true,
-            sonyliv_trending: true, zee5_trending: true,
-            holly_trending: true, holly_latest: true
+            netflix_trending: true, prime_trending: true,
+            hotstar_trending: true, holly_trending: true
         },
         providers: {
-            torrentio: true, bitsearch: true, nyaa: true, yts: true,
-            mediafusion: true, hdhub: true, desiflix: true, tamilmv: true, tamilblasters: true
+            bitsearch: true, nyaa: true, yts: true, mediafusion: true
         },
         langPriority: "hindi", 
         excludeResolutions: []
@@ -44,31 +42,40 @@ function parseConfig(configStr) {
 function getManifest(config) {
     const extraParams = [{ name: "search", isRequired: false }, { name: "skip", isRequired: false }];
     
+    // INDEPENDENT PROFESSIONAL CATALOGS WITH INDONESIAN HORROR VAULT
     const allCatalogs = [
+        // 🇮🇩 INDONESIAN HORROR VAULT
+        { type: "movie", id: "indo_horror_trending", name: "👻 Indonesian Horror: Trending", extra: extraParams },
+        { type: "movie", id: "indo_horror_latest", name: "👻 Indonesian Horror: Latest & Upcoming", extra: extraParams },
+
+        // 💀 GLOBAL HORROR
+        { type: "movie", id: "global_horror", name: "💀 World Horror Masterpieces", extra: extraParams },
+
+        // ⚡ ANIME
         { type: "series", id: "anime_trending", name: "🔥 Anime: Trending", extra: extraParams },
         { type: "series", id: "anime_airing", name: "⚡ Anime: Latest Airing", extra: extraParams },
         { type: "movie", id: "anime_movies", name: "🎬 Anime: Movies", extra: extraParams },
+
+        // 🇮🇳 BOLLYWOOD & SOUTH
         { type: "movie", id: "bolly_trending", name: "🔥 Bollywood: Trending", extra: extraParams },
-        { type: "movie", id: "bolly_latest", name: "🆕 Bollywood: Latest Releases", extra: extraParams },
+        { type: "movie", id: "bolly_latest", name: "🆕 Bollywood: Latest", extra: extraParams },
         { type: "movie", id: "south_trending", name: "🌟 South Indian: Trending", extra: extraParams },
-        { type: "movie", id: "south_latest", name: "💥 South Indian: Latest Releases", extra: extraParams },
+        { type: "movie", id: "south_latest", name: "💥 South Indian: Latest", extra: extraParams },
+
+        // 👑 OTT PLATFORMS
         { type: "series", id: "netflix_trending", name: "👑 Netflix: Trending", extra: extraParams },
-        { type: "series", id: "netflix_latest", name: "👑 Netflix: Latest", extra: extraParams },
         { type: "series", id: "prime_trending", name: "📦 Amazon Prime: Trending", extra: extraParams },
-        { type: "series", id: "prime_latest", name: "📦 Amazon Prime: Latest", extra: extraParams },
         { type: "series", id: "hotstar_trending", name: "✨ Disney+ Hotstar: Trending", extra: extraParams },
-        { type: "series", id: "hotstar_latest", name: "✨ Disney+ Hotstar: Latest", extra: extraParams },
-        { type: "series", id: "sonyliv_trending", name: "🍿 SonyLIV: Trending", extra: extraParams },
-        { type: "series", id: "zee5_trending", name: "🍿 Zee5: Trending", extra: extraParams },
-        { type: "movie", id: "holly_trending", name: "🌍 Hollywood (Hindi): Trending", extra: extraParams },
-        { type: "movie", id: "holly_latest", name: "🌍 Hollywood (Hindi): Latest", extra: extraParams }
+
+        // 🌍 HOLLYWOOD
+        { type: "movie", id: "holly_trending", name: "🌍 Hollywood (Hindi): Trending", extra: extraParams }
     ];
 
     return {
-        id: "org.auraflix.pro",
-        version: "29.0.0",
-        name: "AuraFlix PRO 🇮🇳",
-        description: "Professional Engine: Fully Separated Platform Catalogs + Ultimate Universal Link Scraper.",
+        id: "org.auraflix.independent",
+        version: "30.0.0",
+        name: "AuraFlix Independent 🇮🇳",
+        description: "Self-Hosted Independent Engine with Indonesian Horror Vault & Direct Multi-Source Scraper.",
         logo: "https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png",
         background: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop",
         resources: [
@@ -108,12 +115,18 @@ async function fetchAnime(catalogId, search = null, skip = 0) {
 async function fetchOTTContent(catalogId, search = null, skip = 0) {
     try {
         const page = Math.floor((skip || 0) / 20) + 1;
-        let isSeries = catalogId.includes("series") || catalogId.includes("netflix") || catalogId.includes("prime") || catalogId.includes("hotstar") || catalogId.includes("sonyliv") || catalogId.includes("zee5");
+        let isSeries = catalogId.includes("series") || catalogId.includes("netflix") || catalogId.includes("prime") || catalogId.includes("hotstar");
         let url = "";
         const today = new Date().toISOString().split('T')[0];
 
         if (search) {
             url = `https://api.themoviedb.org/3/search/${isSeries ? 'tv' : 'movie'}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&page=${page}`;
+        } else if (catalogId === "indo_horror_trending") {
+            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_genres=27&with_origin_country=ID&sort_by=popularity.desc&page=${page}`;
+        } else if (catalogId === "indo_horror_latest") {
+            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_genres=27&with_origin_country=ID&sort_by=primary_release_date.desc&primary_release_date.lte=${today}&page=${page}`;
+        } else if (catalogId === "global_horror") {
+            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_genres=27&sort_by=vote_average.desc&vote_count.gte=500&page=${page}`;
         } else if (catalogId === "bolly_trending") {
             url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=hi&sort_by=popularity.desc&page=${page}`;
         } else if (catalogId === "bolly_latest") {
@@ -124,24 +137,12 @@ async function fetchOTTContent(catalogId, search = null, skip = 0) {
             url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=te|ta|ml|kn&sort_by=primary_release_date.desc&primary_release_date.lte=${today}&page=${page}`;
         } else if (catalogId === "netflix_trending") {
             url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=8&watch_region=IN&sort_by=popularity.desc&page=${page}`;
-        } else if (catalogId === "netflix_latest") {
-            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=8&watch_region=IN&sort_by=first_air_date.desc&first_air_date.lte=${today}&page=${page}`;
         } else if (catalogId === "prime_trending") {
             url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=119&watch_region=IN&sort_by=popularity.desc&page=${page}`;
-        } else if (catalogId === "prime_latest") {
-            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=119&watch_region=IN&sort_by=first_air_date.desc&first_air_date.lte=${today}&page=${page}`;
         } else if (catalogId === "hotstar_trending") {
             url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=122&watch_region=IN&sort_by=popularity.desc&page=${page}`;
-        } else if (catalogId === "hotstar_latest") {
-            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=122&watch_region=IN&sort_by=first_air_date.desc&first_air_date.lte=${today}&page=${page}`;
-        } else if (catalogId === "sonyliv_trending") {
-            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=237&watch_region=IN&sort_by=popularity.desc&page=${page}`;
-        } else if (catalogId === "zee5_trending") {
-            url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=232&watch_region=IN&sort_by=popularity.desc&page=${page}`;
         } else if (catalogId === "holly_trending") {
             url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=en&sort_by=popularity.desc&page=${page}`;
-        } else if (catalogId === "holly_latest") {
-            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=en&sort_by=primary_release_date.desc&primary_release_date.lte=${today}&page=${page}`;
         }
 
         if (!url) return [];
@@ -153,7 +154,7 @@ async function fetchOTTContent(catalogId, search = null, skip = 0) {
             name: m.title || m.name,
             poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/500x750?text=No+Poster",
             background: m.backdrop_path ? `https://image.tmdb.org/t/p/original${m.backdrop_path}` : undefined,
-            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 " + (m.release_date || m.first_air_date || "TBA") + "\n\n" + (m.overview || "")
+            description: "⭐ TMDB: " + (m.vote_average || "N/A") + "/10 | 📅 Release: " + (m.release_date || m.first_air_date || "TBA") + "\n\n" + (m.overview || "")
         }));
     } catch (e) { return []; }
 }
@@ -228,6 +229,9 @@ async function handleMeta(req, res) {
     return res.status(404).send("Not Found"); 
 }
 
+// ----------------------------------------------------
+// INDEPENDENT DIRECT SCRAPER ENGINE (NO DEPENDENCY)
+// ----------------------------------------------------
 app.get("/stream/:type/:id.json", handleStream);
 app.get("/stream/:type/:id/:extra", handleStream);
 app.get("/:config/stream/:type/:id.json", handleStream);
@@ -243,6 +247,7 @@ async function handleStream(req, res) {
     let mediaTitle = "";
     let episodeNum = "";
     let seasonNum = "";
+    let releaseYear = "";
     
     try {
         if (isAnime) {
@@ -257,80 +262,117 @@ async function handleStream(req, res) {
             episodeNum = parts[3];
             const isTv = type === "series";
             
-            const tRes = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`, { timeout: 4500 });
+            const tRes = await axios.get(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${tmdbId}?api_key=${TMDB_API_KEY}`, { timeout: 4500 });
             mediaTitle = tRes.data.title || tRes.data.name;
-            const imdbId = tRes.data.external_ids?.imdb_id || tRes.data.imdb_id;
-            
-            if (imdbId) targetId = (seasonNum && episodeNum) ? `${imdbId}:${seasonNum}:${episodeNum}` : imdbId;
+            releaseYear = (tRes.data.release_date || tRes.data.first_air_date || "").substring(0, 4);
         } else if (targetId.startsWith("tt")) {
             const parts = targetId.split(":");
-            targetId = parts[0]; 
-            if(parts.length > 1) {
-                seasonNum = parts[1];
-                episodeNum = parts[2];
-                targetId = `${parts[0]}:${parts[1]}:${parts[2]}`;
+            const imdbId = parts[0];
+            seasonNum = parts[1];
+            episodeNum = parts[2];
+            
+            const findRes = await axios.get(`https://api.themoviedb.org/3/find/${imdbId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`, { timeout: 4500 });
+            const movieObj = findRes.data.movie_results?.[0];
+            const tvObj = findRes.data.tv_results?.[0];
+            const item = movieObj || tvObj;
+            if (item) {
+                mediaTitle = item.title || item.name;
+                releaseYear = (item.release_date || item.first_air_date || "").substring(0, 4);
             }
         }
-    } catch (e) { }
+    } catch (e) { 
+        console.log("Resolution error:", e.message);
+    }
 
     let allStreams = [];
-    const scraperType = isAnime ? "anime" : (seasonNum ? "series" : "movie");
+    
+    let cleanQuery = mediaTitle;
+    if (releaseYear) cleanQuery += ` ${releaseYear}`;
+    if (seasonNum && episodeNum) {
+        cleanQuery += ` S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}`;
+    }
 
-    // 1. PRIMARY FETCH: Torrentio & MediaFusion
-    const providersList = [
-        `https://torrentio.strem.fun/stream/${scraperType}/${targetId}.json`,
-        `https://mediafusion.elfhosted.com/stream/${scraperType}/${targetId}.json`
+    const queriesToRun = [
+        cleanQuery,
+        mediaTitle + (seasonNum ? ` S${seasonNum}` : "")
     ];
 
-    await Promise.allSettled(providersList.map(async (providerUrl) => {
-        try {
-            let r = await axios.get(providerUrl, { timeout: 6000 }); 
-            if (r.data && r.data.streams && Array.isArray(r.data.streams)) {
-                const validStreams = r.data.streams.filter(s => s.url || s.infoHash);
-                allStreams.push(...validStreams);
-            }
-        } catch(e) { }
-    }));
-
-    // 2. BULLETPROOF BACKUP: If primary fails, query BitSearch directly using media title!
-    if (allStreams.length === 0 && mediaTitle) {
-        let searchQuery = isAnime ? `${mediaTitle} ${episodeNum}` : (seasonNum ? `${mediaTitle} S${seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : mediaTitle);
-        
-        try {
-            let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(searchQuery)}&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
-            if (bitRes.data && bitRes.data.data && Array.isArray(bitRes.data.data)) {
-                bitRes.data.data.forEach(t => {
-                    allStreams.push({ 
-                        title: t.name, 
-                        infoHash: t.infohash, 
-                        seeders: parseInt(t.seeders) || 15, 
-                        isNative: true, 
-                        provider: "BitSearch" 
+    // INDEPENDENT SCRAPER 1: BitSearch Direct API Scraper
+    if (config.providers.bitsearch && cleanQuery) {
+        for (let q of queriesToRun) {
+            try {
+                let bitRes = await axios.get(`https://bitsearch.info/api/v1/search?q=${encodeURIComponent(q)}&sort=seeders&limit=30`, { headers: SCRAPER_HEADERS, timeout: 5000 });
+                if (bitRes.data && bitRes.data.data && Array.isArray(bitRes.data.data)) {
+                    bitRes.data.data.forEach(t => {
+                        allStreams.push({
+                            title: t.name,
+                            infoHash: t.infohash,
+                            seeders: parseInt(t.seeders) || 10,
+                            size: t.size,
+                            isNative: true,
+                            provider: "BitSearch"
+                        });
                     });
+                }
+            } catch(e) {}
+            if (allStreams.length > 15) break;
+        }
+    }
+
+    // INDEPENDENT SCRAPER 2: YTS API for Movies
+    if (config.providers.yts && !isAnime && mediaTitle && type === "movie") {
+        try {
+            let ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(mediaTitle)}`, { timeout: 4000 });
+            if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
+                ytsRes.data.data.movies.forEach(m => {
+                    if (m.torrents && Array.isArray(m.torrents)) {
+                        m.torrents.forEach(t => {
+                            allStreams.push({
+                                title: `${m.title} [${t.quality}] [${t.type}] • ${t.size}`,
+                                infoHash: t.hash,
+                                seeders: t.seeds || 25,
+                                isNative: true,
+                                provider: "YTS"
+                            });
+                        });
+                    }
                 });
             }
         } catch(e) {}
     }
 
-    // 3. ANIME BACKUP: Nyaa RSS
-    if (isAnime && allStreams.length === 0 && mediaTitle) {
+    // INDEPENDENT SCRAPER 3: Nyaa.si RSS for Anime
+    if (config.providers.nyaa && isAnime && mediaTitle) {
         try {
-            let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(mediaTitle + " " + episodeNum)}&c=0_0&f=0`, { timeout: 4000 });
+            let animeQuery = mediaTitle + (episodeNum ? ` ${episodeNum}` : "");
+            let nyaaRes = await axios.get(`https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}&c=0_0&f=0`, { timeout: 4000 });
             const items = nyaaRes.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
             items.forEach(item => {
                 const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
                 const hashMatch = item.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
                 const seedsMatch = item.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
                 if (titleMatch && hashMatch) {
-                    allStreams.push({ 
-                        title: titleMatch[1], 
-                        infoHash: hashMatch[1], 
-                        seeders: parseInt(seedsMatch ? seedsMatch[1] : 25), 
-                        isNative: true, 
-                        provider: "Nyaa" 
+                    allStreams.push({
+                        title: titleMatch[1],
+                        infoHash: hashMatch[1],
+                        seeders: parseInt(seedsMatch ? seedsMatch[1] : 20),
+                        isNative: true,
+                        provider: "Nyaa"
                     });
                 }
             });
+        } catch(e) {}
+    }
+
+    // INDEPENDENT SCRAPER 4: MediaFusion Public Direct Instance (As fallback)
+    if (config.providers.mediafusion) {
+        try {
+            let mfRes = await axios.get(`https://mediafusion.elfhosted.com/stream/${isAnime ? "anime" : type}/${targetId}.json`, { timeout: 5000 });
+            if (mfRes.data && mfRes.data.streams && Array.isArray(mfRes.data.streams)) {
+                mfRes.data.streams.forEach(s => {
+                    if (s.url || s.infoHash) allStreams.push(s);
+                });
+            }
         } catch(e) {}
     }
 
@@ -379,11 +421,12 @@ async function handleStream(req, res) {
 
         if (excludes.includes("cam") && (fullText.includes("cam") || fullText.includes("ts") || fullText.includes("hdcam"))) return;
 
-        // PROFESSIONAL MULTI-LANGUAGE FLAGS DETECTOR
+        // MULTI-LANGUAGE FLAGS & COUNTRY DETECTION (🇮🇩 INDONESIAN, 🇮🇳 HINDI, etc.)
         let langBadge = "🌐 MULTI AUDIO";
         let langRank = 1;
 
-        if (/\b(hindi|hin)\b/i.test(fullText)) { langBadge = "🇮🇳 HINDI DUB"; langRank = 40; }
+        if (/\b(indonesian|indo)\b/i.test(fullText)) { langBadge = "🇮🇩 INDONESIAN"; langRank = 50; }
+        else if (/\b(hindi|hin)\b/i.test(fullText)) { langBadge = "🇮🇳 HINDI DUB"; langRank = 40; }
         else if (/\b(tamil|tam)\b/i.test(fullText)) { langBadge = "🇮🇳 TAMIL"; langRank = 25; }
         else if (/\b(telugu|tel)\b/i.test(fullText)) { langBadge = "🇮🇳 TELUGU"; langRank = 25; }
         else if (/\b(malayalam|mal)\b/i.test(fullText)) { langBadge = "🇮🇳 MALAYALAM"; langRank = 20; }
@@ -397,22 +440,18 @@ async function handleStream(req, res) {
         }
 
         let providerTag = "🚀 P2P STREAM";
-        if (fullText.includes("mediafusion") || rawName.includes("mediafusion")) providerTag = "🔥 MEDIAFUSION";
         if (s.isNative) providerTag = `⚡ ${s.provider.toUpperCase()} (Scraper)`;
-        
-        let modeTag = isDirect ? "⚡ DIRECT LINK" : providerTag;
-        if (fullText.includes("pixeldrain")) modeTag = "⚡ PIXELDRAIN DIRECT";
-        if (fullText.includes("mega")) modeTag = "⚡ MEGA DIRECT";
+        if (isDirect) providerTag = "⚡ DIRECT WEB LINK";
 
         s.langRank = langRank;
         s.qRank = qRank;
         s.seeders = seeders;
 
         let rawTitleStr = String(s.title || "Play Now");
-        let cleanTitle = rawTitleStr.split(/\r?\n/)[0].replace(/\b(Torrentio|Debrid|MediaFusion)\b/ig, 'AuraFlix');
+        let cleanTitle = rawTitleStr.split(/\r?\n/)[0];
 
-        s.name = `🎬 AuraFlix VIP\n${langBadge}`;
-        s.title = `${quality} • ${modeTag}\n${cleanTitle}\n👤 ${seeders} Seeders`;
+        s.name = `🎬 AuraFlix Independent\n${langBadge}`;
+        s.title = `${quality} • ${providerTag}\n${cleanTitle}\n👤 ${seeders} Seeders`;
 
         processedStreams.push(s);
     });
@@ -436,7 +475,7 @@ function renderConfigPage(res, currentConfig) {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>AuraFlix PRO Settings</title>
+            <title>AuraFlix Independent Settings</title>
             <style>
                 body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: #e2e8f0; margin: 0; padding: 20px; }
                 .container { max-width: 800px; margin: 0 auto; background: #111827; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #1f2937; }
@@ -464,34 +503,33 @@ function renderConfigPage(res, currentConfig) {
             <div class="container">
                 <div class="header">
                     <img src="https://raw.githubusercontent.com/Jafirhossain/AuraFlix/main/logo.png" alt="AuraFlix Logo" class="logo" onerror="this.style.display='none'">
-                    <h1>AuraFlix PRO 🇮🇳</h1>
-                    <p class="desc">Professional Multi-Platform Engine & Universal Scraper.</p>
+                    <h1>AuraFlix Independent 🇮🇳</h1>
+                    <p class="desc">Self-Hosted Engine with Indonesian Horror Vault & Multi-Source Scraper.</p>
                 </div>
                 
                 <div class="section">
-                    <div class="section-title">🔍 Select Streaming Providers</div>
+                    <div class="section-title">🔍 Independent Scraper Engines</div>
                     <div class="provider-split">
                         <div class="provider-box">
-                            <h3 style="color:#38bdf8;">🚀 Torrent Providers (P2P)</h3>
-                            <label><input type="checkbox" id="prov_torrentio"> Torrentio (1337x, PirateBay)</label>
-                            <label><input type="checkbox" id="prov_bitsearch"> BitSearch Engine (Backup)</label>
-                            <label><input type="checkbox" id="prov_nyaa"> Nyaa.si (Anime Torrents)</label>
-                            <label><input type="checkbox" id="prov_yts"> YTS (Movies Torrents)</label>
+                            <h3 style="color:#38bdf8;">🚀 P2P & Torrent Scrapers</h3>
+                            <label><input type="checkbox" id="prov_bitsearch"> BitSearch Direct API Scraper</label>
+                            <label><input type="checkbox" id="prov_nyaa"> Nyaa.si Anime RSS Scraper</label>
+                            <label><input type="checkbox" id="prov_yts"> YTS Movie API Scraper</label>
                         </div>
                         <div class="provider-box">
-                            <h3 style="color:#a3e635;">⚡ Direct Web Streaming</h3>
-                            <label><input type="checkbox" id="prov_hdhub"> HDHub (Direct WebRips)</label>
-                            <label><input type="checkbox" id="prov_desiflix"> DesiFlix (Indian Series)</label>
-                            <label><input type="checkbox" id="prov_tamilmv"> TamilMV (South Direct)</label>
-                            <label><input type="checkbox" id="prov_tamilblasters"> TamilBlasters (Regional)</label>
-                            <label><input type="checkbox" id="prov_mediafusion"> MediaFusion (Mega/Pixeldrain)</label>
+                            <h3 style="color:#a3e635;">⚡ Web Stream Engines</h3>
+                            <label><input type="checkbox" id="prov_mediafusion"> MediaFusion Direct Fallback</label>
                         </div>
                     </div>
                 </div>
 
                 <div class="section">
-                    <div class="section-title">📺 Professional Separated Catalogs</div>
+                    <div class="section-title">📺 Professional Catalogs (Includes Indonesian Horror Vault)</div>
                     <div class="grid-2">
+                        <label><input type="checkbox" id="cat_indo_horror_trending"> 👻 Indonesian Horror: Trending</label>
+                        <label><input type="checkbox" id="cat_indo_horror_latest"> 👻 Indonesian Horror: Latest</label>
+                        <label><input type="checkbox" id="cat_global_horror"> 💀 World Horror Masterpieces</label>
+                        
                         <label><input type="checkbox" id="cat_anime_trending"> 🔥 Anime: Trending</label>
                         <label><input type="checkbox" id="cat_anime_airing"> ⚡ Anime: Latest Airing</label>
                         <label><input type="checkbox" id="cat_anime_movies"> 🎬 Anime: Movies</label>
@@ -503,19 +541,9 @@ function renderConfigPage(res, currentConfig) {
                         <label><input type="checkbox" id="cat_south_latest"> 💥 South Indian: Latest</label>
                         
                         <label><input type="checkbox" id="cat_netflix_trending"> 👑 Netflix: Trending</label>
-                        <label><input type="checkbox" id="cat_netflix_latest"> 👑 Netflix: Latest</label>
-                        
                         <label><input type="checkbox" id="cat_prime_trending"> 📦 Amazon Prime: Trending</label>
-                        <label><input type="checkbox" id="cat_prime_latest"> 📦 Amazon Prime: Latest</label>
-                        
                         <label><input type="checkbox" id="cat_hotstar_trending"> ✨ Disney+ Hotstar: Trending</label>
-                        <label><input type="checkbox" id="cat_hotstar_latest"> ✨ Disney+ Hotstar: Latest</label>
-                        
-                        <label><input type="checkbox" id="cat_sonyliv_trending"> 🍿 SonyLIV: Trending</label>
-                        <label><input type="checkbox" id="cat_zee5_trending"> 🍿 Zee5: Trending</label>
-                        
-                        <label><input type="checkbox" id="cat_holly_trending"> 🌍 Hollywood (Hindi): Trending</label>
-                        <label><input type="checkbox" id="cat_holly_latest"> 🌍 Hollywood (Hindi): Latest</label>
+                        <label><input type="checkbox" id="cat_holly_trending"> 🌍 Hollywood (Hindi)</label>
                     </div>
                 </div>
 
@@ -538,19 +566,19 @@ function renderConfigPage(res, currentConfig) {
                     </select>
                 </div>
 
-                <a id="installBtn" class="btn" href="#">Install AuraFlix PRO</a>
+                <a id="installBtn" class="btn" href="#">Install AuraFlix Independent</a>
             </div>
 
             <script>
                 const initialConfig = ` + configJson + `;
                 
-                ['torrentio', 'bitsearch', 'nyaa', 'yts', 'mediafusion', 'hdhub', 'desiflix', 'tamilmv', 'tamilblasters'].forEach(id => {
+                ['bitsearch', 'nyaa', 'yts', 'mediafusion'].forEach(id => {
                     if(document.getElementById('prov_' + id)) {
                         document.getElementById('prov_' + id).checked = initialConfig.providers[id] !== false;
                     }
                 });
 
-                ['anime_trending', 'anime_airing', 'anime_movies', 'bolly_trending', 'bolly_latest', 'south_trending', 'south_latest', 'netflix_trending', 'netflix_latest', 'prime_trending', 'prime_latest', 'hotstar_trending', 'hotstar_latest', 'sonyliv_trending', 'zee5_trending', 'holly_trending', 'holly_latest'].forEach(id => {
+                ['indo_horror_trending', 'indo_horror_latest', 'global_horror', 'anime_trending', 'anime_airing', 'anime_movies', 'bolly_trending', 'bolly_latest', 'south_trending', 'south_latest', 'netflix_trending', 'prime_trending', 'hotstar_trending', 'holly_trending'].forEach(id => {
                     if(document.getElementById('cat_' + id)) {
                         document.getElementById('cat_' + id).checked = initialConfig.catalogs[id] !== false;
                     }
@@ -567,12 +595,12 @@ function renderConfigPage(res, currentConfig) {
 
                 function updateUrl() {
                     let catObj = {};
-                    ['anime_trending', 'anime_airing', 'anime_movies', 'bolly_trending', 'bolly_latest', 'south_trending', 'south_latest', 'netflix_trending', 'netflix_latest', 'prime_trending', 'prime_latest', 'hotstar_trending', 'hotstar_latest', 'sonyliv_trending', 'zee5_trending', 'holly_trending', 'holly_latest'].forEach(id => {
+                    ['indo_horror_trending', 'indo_horror_latest', 'global_horror', 'anime_trending', 'anime_airing', 'anime_movies', 'bolly_trending', 'bolly_latest', 'south_trending', 'south_latest', 'netflix_trending', 'prime_trending', 'hotstar_trending', 'holly_trending'].forEach(id => {
                         if(document.getElementById('cat_' + id)) catObj[id] = document.getElementById('cat_' + id).checked;
                     });
 
                     let provObj = {};
-                    ['torrentio', 'bitsearch', 'nyaa', 'yts', 'mediafusion', 'hdhub', 'desiflix', 'tamilmv', 'tamilblasters'].forEach(id => {
+                    ['bitsearch', 'nyaa', 'yts', 'mediafusion'].forEach(id => {
                         if(document.getElementById('prov_' + id)) provObj[id] = document.getElementById('prov_' + id).checked;
                     });
 
